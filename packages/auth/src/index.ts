@@ -18,15 +18,20 @@ export const authOptions: NextAuthOptions = {
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null;
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-          select: { id: true, email: true, name: true, role: true, passwordHash: true },
-        });
+        try {
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email },
+            select: { id: true, email: true, name: true, role: true, passwordHash: true },
+          });
 
-        if (!user?.passwordHash) return null;
-        if (!compareSync(credentials.password, user.passwordHash)) return null;
+          if (!user?.passwordHash) return null;
+          if (!compareSync(credentials.password, user.passwordHash)) return null;
 
-        return { id: user.id, email: user.email, name: user.name, role: user.role };
+          return { id: user.id, email: user.email, name: user.name, role: user.role };
+        } catch (err) {
+          console.error("[auth] authorize error:", err);
+          return null;
+        }
       },
     }),
   ],
