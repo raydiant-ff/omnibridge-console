@@ -7,10 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      bcryptjs:
-        specifier: ^3.0.3
-        version: 3.0.3
     devDependencies:
       turbo:
         specifier: ^2
