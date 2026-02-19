@@ -1,0 +1,23 @@
+{
+  "name": "omnibridge",
+  "private": true,
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "db:generate": "turbo db:generate",
+    "db:push": "turbo db:push",
+    "db:migrate": "pnpm --filter @omnibridge/db db:migrate",
+    "db:migrate:deploy": "pnpm --filter @omnibridge/db db:migrate:deploy",
+    "db:seed": "pnpm --filter @omnibridge/db db:seed",
+    "db:studio": "pnpm --filter @omnibridge/db db:studio",
+    "clean": "turbo clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "^2"
+  },
+  "packageManager": "pnpm@9.15.4",
+  "dependencies": {
+    "bcryptjs": "^3.0.3"
+  }
+}

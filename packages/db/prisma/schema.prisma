@@ -1,0 +1,174 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum Role {
+  admin
+  sales
+  csm
+  finance
+  support
+}
+
+enum WorkItemStatus {
+  pending
+  in_progress
+  completed
+  failed
+  cancelled
+}
+
+// ---------------------------------------------------------------------------
+// NextAuth models (required by @auth/prisma-adapter)
+// ---------------------------------------------------------------------------
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String  @map("user_id")
+  type              String
+  provider          String
+  providerAccountId String  @map("provider_account_id")
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique @map("session_token")
+  userId       String   @map("user_id")
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map("verification_tokens")
+}
+
+// ---------------------------------------------------------------------------
+// Application models
+// ---------------------------------------------------------------------------
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  emailVerified DateTime? @map("email_verified")
+  name          String?
+  image         String?
+  passwordHash  String?   @map("password_hash")
+  role          Role      @default(sales)
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  accounts          Account[]
+  sessions          Session[]
+  createdWorkItems  WorkItem[]  @relation("CreatedBy")
+  assignedWorkItems WorkItem[]  @relation("AssignedTo")
+  auditLogs         AuditLog[]
+
+  @@index([role])
+  @@map("users")
+}
+
+model CustomerIndex {
+  id               String   @id @default(cuid())
+  sfAccountId      String?  @unique @map("sf_account_id")
+  sfAccountName    String?  @map("sf_account_name")
+  stripeCustomerId String?  @unique @map("stripe_customer_id")
+  domain           String?
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  workItems WorkItem[]
+  auditLogs AuditLog[]
+
+  @@index([domain])
+  @@index([sfAccountName])
+  @@map("customer_index")
+}
+
+model WorkItem {
+  id           String         @id @default(cuid())
+  type         String
+  status       WorkItemStatus @default(pending)
+  payloadJson  Json?          @map("payload_json")
+  createdById  String         @map("created_by")
+  assignedToId String?        @map("assigned_to")
+  customerId   String?        @map("customer_id")
+  dueAt        DateTime?      @map("due_at")
+  createdAt    DateTime       @default(now()) @map("created_at")
+  updatedAt    DateTime       @updatedAt @map("updated_at")
+
+  createdBy  User           @relation("CreatedBy", fields: [createdById], references: [id])
+  assignedTo User?          @relation("AssignedTo", fields: [assignedToId], references: [id])
+  customer   CustomerIndex? @relation(fields: [customerId], references: [id])
+
+  @@index([status])
+  @@index([createdById])
+  @@index([assignedToId])
+  @@index([customerId])
+  @@index([type, status])
+  @@map("work_items")
+}
+
+model AuditLog {
+  id          String   @id @default(cuid())
+  actorUserId String   @map("actor_user_id")
+  action      String
+  targetType  String?  @map("target_type")
+  targetId    String?  @map("target_id")
+  requestId   String?  @map("request_id")
+  payloadJson Json?    @map("payload_json")
+  customerId  String?  @map("customer_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  actor    User           @relation(fields: [actorUserId], references: [id])
+  customer CustomerIndex? @relation(fields: [customerId], references: [id])
+
+  @@index([actorUserId])
+  @@index([customerId])
+  @@index([action])
+  @@index([targetType, targetId])
+  @@index([createdAt])
+  @@map("audit_log")
+}
+
+model IdempotencyKey {
+  key       String   @id
+  scope     String
+  createdAt DateTime @default(now()) @map("created_at")
+  expiresAt DateTime @map("expires_at")
+
+  @@index([scope])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
+}

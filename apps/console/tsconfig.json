@@ -1,0 +1,40 @@
+{
+  "extends": "@omnibridge/typescript-config/nextjs.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": [
+        "./src/*"
+      ],
+      "@omnibridge/db": [
+        "../../packages/db/src"
+      ],
+      "@omnibridge/auth": [
+        "../../packages/auth/src"
+      ],
+      "@omnibridge/stripe": [
+        "../../packages/integrations/stripe/src"
+      ],
+      "@omnibridge/salesforce": [
+        "../../packages/integrations/salesforce/src"
+      ],
+      "@omnibridge/ui": [
+        "../../packages/ui/src"
+      ],
+      "@omnibridge/ui/*": [
+        "../../packages/ui/src/*"
+      ]
+    },
+    "allowJs": true
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "../../packages/auth/src/types.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ]
+}

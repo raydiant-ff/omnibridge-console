@@ -1,0 +1,41 @@
+# Dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# Turbo
+.turbo/
+
+# Build
+dist/
+
+# Env
+.env
+.env.local
+.env.*.local
+
+# Prisma
+packages/db/prisma/*.db
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Debug
+npm-debug.log*
+pnpm-debug.log*
+
+node_modules
+.next
+.env
+.env.local
+.env.*
+dist
+.prisma
+coverage

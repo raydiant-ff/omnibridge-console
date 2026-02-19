@@ -1,0 +1,3 @@
+{
+  "extends": "@omnibridge/typescript-config/base.json"
+}

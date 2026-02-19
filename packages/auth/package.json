@@ -1,0 +1,26 @@
+{
+  "name": "@omnibridge/auth",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts"
+  },
+  "scripts": {
+    "lint": "eslint src/"
+  },
+  "dependencies": {
+    "@omnibridge/db": "workspace:*",
+    "bcryptjs": "^3.0.3",
+    "next-auth": "^4"
+  },
+  "devDependencies": {
+    "@omnibridge/eslint-config": "workspace:*",
+    "@omnibridge/typescript-config": "workspace:*",
+    "@types/bcryptjs": "^3.0.0",
+    "eslint": "^8",
+    "typescript": "^5"
+  }
+}
