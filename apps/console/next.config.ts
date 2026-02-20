@@ -3,7 +3,9 @@ import path from "path";
 
 const config: NextConfig = {
   outputFileTracingRoot: path.join(__dirname, "../../"),
-  serverExternalPackages: ["@prisma/client", ".prisma/client"],
+  outputFileTracingIncludes: {
+    "/*": ["../../packages/db/generated/client/**"],
+  },
   transpilePackages: [
     "@omnibridge/ui",
     "@omnibridge/auth",

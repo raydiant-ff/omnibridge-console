@@ -18,6 +18,7 @@ dist/
 
 # Prisma
 packages/db/prisma/*.db
+packages/db/generated/
 
 # IDE
 .vscode/

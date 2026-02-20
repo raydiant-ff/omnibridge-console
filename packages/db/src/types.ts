@@ -6,8 +6,8 @@ export type {
   WorkItem,
   AuditLog,
   IdempotencyKey,
-} from "@prisma/client";
+} from "../../generated/client";
 
-export { Role, WorkItemStatus } from "@prisma/client";
+export { Role, WorkItemStatus } from "../../generated/client";
 
-export type { Prisma } from "@prisma/client";
+export type { Prisma } from "../../generated/client";

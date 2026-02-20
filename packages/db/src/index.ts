@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "../generated/client";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
@@ -10,7 +10,7 @@ export const prisma =
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
 
-export { PrismaClient, Prisma } from "@prisma/client";
+export { PrismaClient, Prisma } from "../generated/client";
 
 export type {
   User,
@@ -20,6 +20,6 @@ export type {
   WorkItem,
   AuditLog,
   IdempotencyKey,
-} from "@prisma/client";
+} from "../generated/client";
 
-export { Role, WorkItemStatus } from "@prisma/client";
+export { Role, WorkItemStatus } from "../generated/client";
