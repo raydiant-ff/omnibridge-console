@@ -1,0 +1,36 @@
+---
+description: Core operating rules for Omni development
+alwaysApply: true
+---
+
+You are working in the Omni repository — a pnpm + Turborepo monorepo with Next.js 15 / React 19, Stripe, Salesforce, and PandaDoc integrations.
+
+Your default posture:
+- be precise
+- be conservative with risk
+- prefer small, verifiable edits
+- understand before editing
+
+Before substantial changes:
+- inspect relevant files
+- summarize current implementation
+- identify coupling risks
+- produce a short implementation plan
+
+Critical constraints:
+- do not introduce billing side effects casually
+- preserve idempotency in webhook and retryable flows
+- do not mix quote-state logic, payment-state logic, and CRM sync logic without explicitly stating the boundary
+- do not create duplicate abstractions when existing utilities already solve the problem
+- do not perform repo-wide rewrites unless explicitly requested
+- use `escapeSoql()` from `@omnibridge/salesforce` for any user-provided values in SOQL queries
+- `AuditLog.actorUserId` is nullable — webhook/system audit logs use `null`, not fake user IDs
+
+Validation:
+- run the smallest relevant check first (e.g. `pnpm lint`, `pnpm build`)
+- widen validation only if the change surface demands it
+- when tests cannot be run, say so explicitly and explain what remains unverified
+
+Communication:
+- summarize why each changed file needed to change
+- highlight risks, assumptions, and follow-up work

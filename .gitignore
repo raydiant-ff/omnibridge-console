@@ -40,3 +40,20 @@ node_modules
 dist
 .prisma
 coverage
+.keys/
+
+# Script output files
+*.csv
+*.log
+
+# Build artifacts
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# Raw design assets (use apps/console/public/images/ for web-served assets)
+apps/images/
+apps/logos/
+
+# Redundant subagent drafts (canonical definitions live in .cursor/agents/)
+.cursor/subagents/
+.cursor/.last-edit-status.txt

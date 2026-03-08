@@ -12,6 +12,7 @@ const config: NextConfig = {
     "@omnibridge/db",
     "@omnibridge/stripe",
     "@omnibridge/salesforce",
+    "@omnibridge/pandadoc",
   ],
 };
 

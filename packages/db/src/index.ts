@@ -19,7 +19,9 @@ export type {
   CustomerIndex,
   WorkItem,
   AuditLog,
+  ProductLog,
   IdempotencyKey,
+  QuoteRecord,
 } from "../generated/client";
 
 export { Role, WorkItemStatus } from "../generated/client";

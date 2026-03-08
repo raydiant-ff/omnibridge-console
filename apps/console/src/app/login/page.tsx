@@ -34,7 +34,7 @@ function LoginForm() {
       return;
     }
 
-    router.push("/customers");
+    router.push("/opportunities");
     router.refresh();
   }
 
@@ -53,9 +53,9 @@ function LoginForm() {
         className="flex w-full max-w-sm flex-col gap-6 rounded-xl border bg-card p-8 shadow-sm"
       >
         <div className="flex flex-col items-center gap-2 text-center">
-          <h1 className="text-2xl font-bold tracking-tight">OmniBridge</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Displai Omni</h1>
           <p className="text-sm text-muted-foreground">
-            Sign in to the console
+            Sign in to continue
           </p>
         </div>
 

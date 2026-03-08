@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<PathAssistant xmlns="http://soap.sforce.com/2006/04/metadata">
+    <active>true</active>
+    <entityName>Stripe_Quote__c</entityName>
+    <fieldName>Status__c</fieldName>
+    <masterLabel>Stripe Quote Status Path</masterLabel>
+    <pathAssistantSteps>
+        <fieldNames>Creator__c</fieldNames>
+        <fieldNames>Opportunity__c</fieldNames>
+        <fieldNames>Account__c</fieldNames>
+        <info>Quote has been created and is being configured. Line items, pricing, and terms are being set up.</info>
+        <picklistValueName>Draft</picklistValueName>
+    </pathAssistantSteps>
+    <pathAssistantSteps>
+        <fieldNames>Net_Amount__c</fieldNames>
+        <fieldNames>Expiration_Date__c</fieldNames>
+        <fieldNames>PandaDoc_Document_ID__c</fieldNames>
+        <info>Quote has been sent to the customer for review and signature via PandaDoc.</info>
+        <picklistValueName>Sent</picklistValueName>
+    </pathAssistantSteps>
+    <pathAssistantSteps>
+        <fieldNames>Contract__c</fieldNames>
+        <fieldNames>Stripe_Subscription_ID__c</fieldNames>
+        <fieldNames>Is_Payment_Done__c</fieldNames>
+        <info>Customer has accepted the quote. Contract, subscriptions, and invoicing are active.</info>
+        <picklistValueName>Accepted</picklistValueName>
+    </pathAssistantSteps>
+    <pathAssistantSteps>
+        <fieldNames>Expiration_Date__c</fieldNames>
+        <info>Quote has passed its expiration date without being accepted.</info>
+        <picklistValueName>Expired</picklistValueName>
+    </pathAssistantSteps>
+    <pathAssistantSteps>
+        <info>Quote has been cancelled and is no longer active.</info>
+        <picklistValueName>Cancelled</picklistValueName>
+    </pathAssistantSteps>
+    <recordTypeName>__MASTER__</recordTypeName>
+</PathAssistant>

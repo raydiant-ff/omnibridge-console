@@ -11,6 +11,7 @@
   "dependencies": {
     "@omnibridge/auth": "workspace:*",
     "@omnibridge/db": "workspace:*",
+    "@omnibridge/pandadoc": "workspace:*",
     "@omnibridge/salesforce": "workspace:*",
     "@omnibridge/stripe": "workspace:*",
     "@omnibridge/ui": "workspace:*",
@@ -21,9 +22,12 @@
     "lucide-react": "^0.474",
     "next": "^15",
     "next-auth": "^4",
+    "pandadoc-editor": "^1.0.1",
+    "pandadoc-signing": "^1.0.1",
     "radix-ui": "^1.4.3",
     "react": "^19",
     "react-dom": "^19",
+    "recharts": "^3.7.0",
     "tailwind-merge": "^3",
     "tailwindcss-animate": "^1"
   },

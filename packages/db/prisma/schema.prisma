@@ -96,6 +96,7 @@ model User {
   createdWorkItems  WorkItem[]  @relation("CreatedBy")
   assignedWorkItems WorkItem[]  @relation("AssignedTo")
   auditLogs         AuditLog[]
+  quotes            QuoteRecord[]
 
   @@index([role])
   @@map("users")
@@ -144,7 +145,7 @@ model WorkItem {
 
 model AuditLog {
   id          String   @id @default(cuid())
-  actorUserId String   @map("actor_user_id")
+  actorUserId String?  @map("actor_user_id")
   action      String
   targetType  String?  @map("target_type")
   targetId    String?  @map("target_id")
@@ -153,7 +154,7 @@ model AuditLog {
   customerId  String?  @map("customer_id")
   createdAt   DateTime @default(now()) @map("created_at")
 
-  actor    User           @relation(fields: [actorUserId], references: [id])
+  actor    User?          @relation(fields: [actorUserId], references: [id])
   customer CustomerIndex? @relation(fields: [customerId], references: [id])
 
   @@index([actorUserId])
@@ -162,6 +163,24 @@ model AuditLog {
   @@index([targetType, targetId])
   @@index([createdAt])
   @@map("audit_log")
+}
+
+model ProductLog {
+  id          String   @id @default(cuid())
+  source      String   // "stripe" | "salesforce" | "omnibridge"
+  action      String   // "created" | "deactivated" | "activated" | "updated" | "deleted"
+  productId   String   @map("product_id")
+  productName String?  @map("product_name")
+  actorType   String   @map("actor_type") // "webhook" | "system" | "user"
+  actorId     String?  @map("actor_id")
+  detail      Json?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([source])
+  @@index([action])
+  @@index([productId])
+  @@index([createdAt])
+  @@map("product_logs")
 }
 
 model IdempotencyKey {
@@ -173,4 +192,53 @@ model IdempotencyKey {
   @@index([scope])
   @@index([expiresAt])
   @@map("idempotency_keys")
+}
+
+model QuoteRecord {
+  id               String    @id @default(cuid())
+  stripeQuoteId    String    @unique @map("stripe_quote_id")
+  customerId       String    @map("customer_id")
+  customerName     String    @map("customer_name")
+  stripeCustomerId String    @map("stripe_customer_id")
+  sfAccountId      String?   @map("sf_account_id")
+  opportunityId    String?   @map("opportunity_id")
+  sfQuoteId        String?   @map("sf_quote_id")
+  collectionMethod String    @map("collection_method")
+  paymentTerms     String?   @map("payment_terms")
+  daysUntilDue     Int?      @map("days_until_due")
+  status           String    @default("draft")
+  acceptToken      String    @unique @map("accept_token")
+  acceptedAt       DateTime? @map("accepted_at")
+  totalAmount      Int?      @map("total_amount")
+  currency         String    @default("usd")
+  expiresAt        DateTime? @map("expires_at")
+  pdfUrl           String?   @map("pdf_url")
+  lineItemsJson    String?   @map("line_items_json")
+  pandadocDocId    String?   @map("pandadoc_document_id")
+  signerName       String?   @map("signer_name")
+  signerEmail      String?   @map("signer_email")
+  contractTerm     String?   @map("contract_term")
+  billingFrequency String?   @map("billing_frequency")
+  contractEndDate  DateTime? @map("contract_end_date")
+  stripeScheduleId     String?   @map("stripe_schedule_id")
+  stripeSubscriptionId String?   @map("stripe_subscription_id")
+  stripeSubItemIds     Json?     @map("stripe_sub_item_ids")
+  stripeQuoteNumber    String?   @map("stripe_quote_number")
+  sfQuoteNumber        String?   @map("sf_quote_number")
+  sfContractId         String?   @map("sf_contract_id")
+  sfSubscriptionIds    Json?     @map("sf_subscription_ids")
+  sfQuoteLineIds       Json?     @map("sf_quote_line_ids")
+  dryRun               Boolean   @default(false) @map("dry_run")
+  createdBy        String    @map("created_by")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  creator User @relation(fields: [createdBy], references: [id])
+
+  @@index([status])
+  @@index([customerId])
+  @@index([opportunityId])
+  @@index([sfQuoteId])
+  @@index([createdBy])
+  @@map("quote_records")
 }

@@ -1,10 +1,5 @@
+import { redirect } from "next/navigation";
+
 export default function Home() {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-6 p-8">
-      <h1 className="text-4xl font-bold tracking-tight">OmniBridge Console</h1>
-      <p className="text-muted-foreground text-lg">
-        Internal operations console &mdash; ready to build.
-      </p>
-    </main>
-  );
+  redirect("/opportunities");
 }

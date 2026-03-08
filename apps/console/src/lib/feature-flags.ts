@@ -10,4 +10,10 @@ export const flags = {
     if (process.env.USE_MOCK_SALESFORCE === "false") return false;
     return !process.env.SF_CLIENT_ID || process.env.SF_CLIENT_ID === "connected_app_consumer_key";
   },
+
+  get useMockPandaDoc() {
+    if (process.env.USE_MOCK_PANDADOC === "true") return true;
+    if (process.env.USE_MOCK_PANDADOC === "false") return false;
+    return !process.env.PANDADOC_API_KEY;
+  },
 } as const;

@@ -1,0 +1,35 @@
+---
+description: Delegation and routing policy for Omni agent workflows
+alwaysApply: true
+---
+
+Select the right subagent before doing substantial work.
+
+Delegate to `omni-architect` when:
+- the task changes data flow across multiple domains
+- the task affects source-of-truth boundaries
+- the task touches billing lifecycle design
+- the user asks for a plan, review, or architecture proposal
+- the task spans many files and the desired approach is unclear
+
+Delegate to `omni-implementer` when:
+- the scope is known
+- the files are known or can be identified quickly
+- the task is feature work, refactoring, endpoint work, schema wiring, UI implementation, or tests
+- the main work is coding rather than design
+
+Delegate to `omni-debugger` when:
+- there is a bug, regression, failing test, runtime error, incorrect billing behavior, or unclear failure mode
+- there is a stack trace, console error, webhook mismatch, or data inconsistency
+- root cause is not yet known
+
+Delegate to `omni-repo-auditor` when:
+- the user asks for current repo status
+- the task is "what changed?", "what is broken?", "what branch are we on?", "what files matter?", or "summarize the current implementation"
+- the task is codebase exploration or repo inventory
+
+Behavior:
+- for large tasks, use plan-first workflow before implementation
+- do not allow the implementer to invent architecture in ambiguous areas without consulting the architect
+- do not allow the debugger to rewrite major subsystems before isolating a root cause
+- do not allow the auditor to modify production code unless explicitly asked

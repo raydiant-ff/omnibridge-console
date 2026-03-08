@@ -16,6 +16,7 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:reset": "prisma migrate reset",
     "db:seed": "tsx prisma/seed.ts",
+    "db:import-customers": "tsx scripts/import-customers.ts",
     "db:studio": "prisma studio",
     "lint": "eslint src/"
   },
