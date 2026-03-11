@@ -5,6 +5,7 @@ import { RefreshButton } from "@/components/refresh-button";
 import { SearchForm } from "./search-form";
 import { AccountsTable } from "./accounts-table";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -79,14 +80,16 @@ function SearchResults({
   customers: Awaited<ReturnType<typeof searchCustomersUnified>>;
 }) {
   return (
-    <>
-      <p className="text-sm text-muted-foreground">
-        {customers.length} result{customers.length !== 1 ? "s" : ""} for
-        &ldquo;{query}&rdquo;
-      </p>
-
-      {customers.length > 0 ? (
-        <div className="overflow-x-auto rounded-lg border">
+    <Card>
+      <CardHeader className="border-b">
+        <CardTitle>Search Results</CardTitle>
+        <CardDescription>
+          {customers.length} result{customers.length !== 1 ? "s" : ""} for
+          &ldquo;{query}&rdquo;
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="p-0">
+        {customers.length > 0 ? (
           <Table>
             <TableHeader>
               <TableRow>
@@ -150,15 +153,15 @@ function SearchResults({
               })}
             </TableBody>
           </Table>
-        </div>
-      ) : (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-12 text-center">
-          <p className="text-sm font-medium">No customers found</p>
-          <p className="text-sm text-muted-foreground">
-            Try a different search term.
-          </p>
-        </div>
-      )}
-    </>
+        ) : (
+          <div className="px-6 py-12 text-center">
+            <p className="text-sm font-medium">No customers found</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Try a different search term.
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }

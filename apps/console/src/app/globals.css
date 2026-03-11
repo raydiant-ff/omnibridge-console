@@ -35,16 +35,16 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
 }
 
 :root {
   /* Displai brand palette — light theme */
-  --radius: 0.625rem;
-  --background: #f3f3f3;
+  --radius: 0.5rem;
+  --background: #f5f5f5;
   --foreground: #171717;
   --card: #ffffff;
   --card-foreground: #171717;
@@ -52,16 +52,16 @@
   --popover-foreground: #171717;
   --primary: #0047d4;
   --primary-foreground: #ffffff;
-  --secondary: #f3f3f3;
+  --secondary: #f5f5f5;
   --secondary-foreground: #282828;
-  --muted: #f3f3f3;
-  --muted-foreground: #6f6f6f;
-  --accent: #f3f3f3;
+  --muted: #f5f5f5;
+  --muted-foreground: #737373;
+  --accent: #f5f5f5;
   --accent-foreground: #282828;
   --destructive: #fa3d4a;
   --destructive-foreground: #ffffff;
-  --border: #dcdcdc;
-  --input: #dcdcdc;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
   --ring: #4270eb;
   --chart-1: #0047d4;
   --chart-2: #6e33c9;
@@ -72,9 +72,9 @@
   --sidebar-foreground: #171717;
   --sidebar-primary: #0047d4;
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f3f3f3;
+  --sidebar-accent: #f5f5f5;
   --sidebar-accent-foreground: #282828;
-  --sidebar-border: #dcdcdc;
+  --sidebar-border: #e5e5e5;
   --sidebar-ring: #4270eb;
 }
 

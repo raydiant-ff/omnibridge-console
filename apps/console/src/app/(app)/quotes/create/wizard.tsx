@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
+import { Check } from "lucide-react";
 import { PickCustomer } from "./steps/pick-customer";
 import { ConfigureQuote } from "./steps/configure-quote";
 import { ConfigureCoTerm } from "../co-term/configure-co-term";
@@ -227,42 +228,67 @@ export function QuoteWizard({
 
   return (
     <div className="flex flex-col gap-6">
-      <nav aria-label="Wizard progress" className="flex items-center gap-1">
-        {badge}
-        {STEP_LABELS.map((label, i) => (
-          <div key={label} className="flex items-center gap-1">
-            {i > 0 && (
-              <div
-                className={`mx-1 h-px w-6 ${i <= step ? "bg-foreground" : "bg-border"}`}
-              />
-            )}
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            {badge}
+            <span className="text-xs font-medium text-muted-foreground">
+              Step {step + 1} of {STEP_LABELS.length}
+            </span>
+          </div>
+          {step > 0 && (
             <button
               type="button"
-              onClick={() => i < step && setStep(i)}
-              disabled={i > step}
-              className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
-                i === step
-                  ? "bg-primary text-primary-foreground"
-                  : i < step
-                    ? "bg-secondary text-secondary-foreground hover:bg-secondary/80 cursor-pointer"
-                    : "bg-muted text-muted-foreground cursor-default"
-              }`}
+              onClick={handleStartNew}
+              className="text-xs text-muted-foreground transition-colors hover:text-foreground"
             >
-              <span>{i + 1}</span>
-              <span className="hidden sm:inline">{label}</span>
+              Start over
             </button>
-          </div>
-        ))}
-        {step > 0 && (
-          <button
-            type="button"
-            onClick={handleStartNew}
-            className="ml-auto text-xs text-muted-foreground hover:text-foreground transition-colors"
-          >
-            Start Over
-          </button>
-        )}
-      </nav>
+          )}
+        </div>
+        <nav aria-label="Wizard progress" className="flex items-center">
+          {STEP_LABELS.map((label, i) => (
+            <div key={label} className="flex flex-1 items-center">
+              <button
+                type="button"
+                onClick={() => i < step && setStep(i)}
+                disabled={i >= step}
+                className="flex items-center gap-2"
+              >
+                <span
+                  className={`flex size-7 shrink-0 items-center justify-center rounded-full text-xs font-medium transition-colors ${
+                    i === step
+                      ? "bg-primary text-primary-foreground"
+                      : i < step
+                        ? "bg-primary/10 text-primary cursor-pointer"
+                        : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {i < step ? <Check className="size-3.5" /> : i + 1}
+                </span>
+                <span
+                  className={`hidden text-xs font-medium sm:inline ${
+                    i === step
+                      ? "text-foreground"
+                      : i < step
+                        ? "text-primary cursor-pointer"
+                        : "text-muted-foreground"
+                  }`}
+                >
+                  {label}
+                </span>
+              </button>
+              {i < STEP_LABELS.length - 1 && (
+                <div
+                  className={`mx-3 h-px flex-1 ${
+                    i < step ? "bg-primary/30" : "bg-border"
+                  }`}
+                />
+              )}
+            </div>
+          ))}
+        </nav>
+      </div>
 
       {step === 0 && (
         <PickCustomer

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Loader2, FlaskConical, Rocket, ArrowDown, ArrowUp, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
@@ -124,14 +124,13 @@ export function ReviewQuote({ state, onBack, onResult, onToggleDryRun }: Props) 
 
   return (
     <Card>
-      <CardContent className="flex flex-col gap-5 pt-6">
-        <div>
-          <h2 className="text-lg font-semibold">Review &amp; Create Quote</h2>
-          <p className="text-sm text-muted-foreground">
-            Verify everything below, then create the Stripe quote.
-          </p>
-        </div>
-
+      <CardHeader className="border-b">
+        <CardTitle>Review &amp; Create Quote</CardTitle>
+        <CardDescription>
+          Verify everything below, then create the Stripe quote.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-5">
         <div className="flex items-center justify-between rounded-lg border px-4 py-3">
           <div className="flex items-center gap-3">
             {state.dryRun ? (
@@ -410,27 +409,27 @@ export function ReviewQuote({ state, onBack, onResult, onToggleDryRun }: Props) 
           </div>
         )}
 
-        <div className="flex justify-between pt-2">
-          <Button variant="outline" onClick={onBack} disabled={isExecuting}>
-            Back
-          </Button>
-          <Button onClick={handleCreate} disabled={isExecuting}>
-            {isExecuting ? (
-              <>
-                <Loader2 className="animate-spin" />
-                {state.dryRun ? "Running Dry Run..." : "Creating Quote..."}
-              </>
-            ) : state.dryRun ? (
-              <>
-                <FlaskConical className="size-4" />
-                Run Dry Test
-              </>
-            ) : (
-              "Create Draft Quote"
-            )}
-          </Button>
-        </div>
       </CardContent>
+      <CardFooter className="justify-between border-t">
+        <Button variant="outline" onClick={onBack} disabled={isExecuting}>
+          Back
+        </Button>
+        <Button onClick={handleCreate} disabled={isExecuting}>
+          {isExecuting ? (
+            <>
+              <Loader2 className="animate-spin" />
+              {state.dryRun ? "Running Dry Run..." : "Creating Quote..."}
+            </>
+          ) : state.dryRun ? (
+            <>
+              <FlaskConical className="size-4" />
+              Run Dry Test
+            </>
+          ) : (
+            "Create Draft Quote"
+          )}
+        </Button>
+      </CardFooter>
     </Card>
   );
 }

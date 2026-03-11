@@ -92,11 +92,8 @@ export function CouponsClient({ initialCoupons }: Props) {
       )}
 
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Ticket className="size-4" />
-            Coupons ({filtered.length})
-          </CardTitle>
+        <CardHeader className="border-b">
+          <CardTitle>Coupons ({filtered.length})</CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           <Table>
@@ -280,8 +277,8 @@ function CreateCouponForm({
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base">New Coupon</CardTitle>
+      <CardHeader className="border-b">
+        <CardTitle>New Coupon</CardTitle>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="grid gap-4 sm:grid-cols-2">

@@ -34,14 +34,19 @@ export function formatCompactCurrency(cents: number): string {
  */
 export function quoteStatusVariant(
   status: string,
-): "default" | "secondary" | "destructive" | "outline" {
+): "default" | "secondary" | "destructive" | "outline" | "success" | "warning" | "info" {
   switch (status) {
     case "accepted":
-      return "default";
+      return "success";
     case "open":
-      return "secondary";
+      return "info";
     case "canceled":
+    case "voided":
       return "destructive";
+    case "draft":
+      return "secondary";
+    case "dry_run":
+      return "warning";
     default:
       return "outline";
   }

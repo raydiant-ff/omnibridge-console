@@ -2,6 +2,12 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  DollarSign,
+  AlertTriangle,
+  TrendingDown,
+  Zap,
+} from "lucide-react";
+import {
   PieChart,
   Pie,
   Cell,
@@ -208,19 +214,21 @@ function DashboardContent({ data }: { data: SubscriptionDashboardData }) {
           title="Active MRR"
           value={formatCompactCurrency(kpis.activeMrr)}
           subtitle={`${kpis.activeCount} active subscription${kpis.activeCount !== 1 ? "s" : ""}`}
-          accent="text-emerald-600"
+          icon={<DollarSign className="size-4 text-muted-foreground" />}
         />
         <KpiCard
           title="Past Due"
           value={String(kpis.pastDueCount)}
           subtitle={`${formatCurrency(kpis.pastDueRevenue)} at risk`}
-          accent="text-red-600"
+          icon={<AlertTriangle className="size-4 text-red-500" />}
+          variant={kpis.pastDueCount > 0 ? "warning" : "default"}
         />
         <KpiCard
           title="Churning"
           value={String(kpis.churningCount)}
           subtitle={`${formatCurrency(kpis.churningRevenue)} MRR impact`}
-          accent="text-amber-600"
+          icon={<TrendingDown className="size-4 text-amber-500" />}
+          variant={kpis.churningCount > 0 ? "destructive" : "default"}
         />
         <KpiCard
           title="Trialing"
@@ -230,7 +238,7 @@ function DashboardContent({ data }: { data: SubscriptionDashboardData }) {
               ? `~${kpis.avgTrialDaysRemaining}d avg remaining`
               : "No active trials"
           }
-          accent="text-blue-600"
+          icon={<Zap className="size-4 text-muted-foreground" />}
         />
       </div>
 
@@ -399,23 +407,37 @@ function KpiCard({
   title,
   value,
   subtitle,
-  accent,
+  icon,
+  variant = "default",
 }: {
   title: string;
   value: string;
   subtitle: string;
-  accent: string;
+  icon?: React.ReactNode;
+  variant?: "default" | "warning" | "destructive";
 }) {
+  const borderClass =
+    variant === "warning"
+      ? "border-amber-500/30"
+      : variant === "destructive"
+        ? "border-destructive/30"
+        : "";
+
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-1 pt-6">
-        <span className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          {title}
-        </span>
-        <span className={`text-2xl font-bold tracking-tight ${accent}`}>
-          {value}
-        </span>
-        <span className="text-xs text-muted-foreground">{subtitle}</span>
+    <Card className={borderClass}>
+      <CardContent className="flex items-start gap-4 pt-5">
+        {icon && (
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted/50">
+            {icon}
+          </div>
+        )}
+        <div className="flex flex-col gap-0.5">
+          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            {title}
+          </p>
+          <p className="text-2xl font-bold tabular-nums tracking-tight">{value}</p>
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
+        </div>
       </CardContent>
     </Card>
   );

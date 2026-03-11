@@ -124,22 +124,22 @@ export function Sidebar() {
   const isAdmin = (session?.user as { role?: string } | undefined)?.role === "admin";
 
   return (
-    <aside className="flex h-screen w-60 shrink-0 flex-col border-r bg-card">
+    <aside className="flex h-screen w-60 shrink-0 flex-col border-r bg-card/50">
       <div className="flex h-14 items-center gap-2 border-b px-5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/images/displai-logo.svg" alt="Displai" className="h-6 w-auto" />
       </div>
 
-      <nav className="flex-1 overflow-y-auto px-3 py-4">
-        <ul className="flex flex-col gap-1">
+      <nav className="flex-1 overflow-y-auto px-3 py-3">
+        <ul className="flex flex-col gap-0.5">
           {NAV_ITEMS.map((item) => (
             <NavEntry key={item.href} item={item} pathname={pathname} isAdmin={isAdmin} />
           ))}
         </ul>
       </nav>
 
-      <div className="border-t px-4 py-3">
-        <div className="flex items-center justify-between">
+      <div className="border-t bg-muted/30 px-4 py-3">
+        <div className="flex items-center justify-between gap-2">
           <div className="min-w-0">
             <p className="truncate text-sm font-medium">
               {session?.user?.name ?? "User"}
@@ -151,11 +151,11 @@ export function Sidebar() {
           <Button
             variant="ghost"
             size="icon"
-            className="shrink-0"
+            className="size-8 shrink-0 text-muted-foreground hover:text-foreground"
             onClick={() => signOut({ callbackUrl: "/login" })}
             title="Sign out"
           >
-            <LogOut className="size-4" />
+            <LogOut className="size-3.5" />
           </Button>
         </div>
       </div>
@@ -174,10 +174,10 @@ function NavEntry({ item, pathname, isAdmin }: { item: NavItem; pathname: string
       <li>
         <Link
           href={item.href}
-          className={`flex items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${
+          className={`flex items-center gap-2.5 rounded-md px-3 py-1.5 text-sm transition-colors ${
             isActive
               ? "bg-primary/10 font-medium text-primary"
-              : "text-muted-foreground hover:bg-muted hover:text-foreground"
+              : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
           }`}
         >
           {item.icon}
@@ -192,23 +192,23 @@ function NavEntry({ item, pathname, isAdmin }: { item: NavItem; pathname: string
       <button
         type="button"
         onClick={() => setExpanded(!expanded)}
-        className={`flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-sm transition-colors ${
+        className={`flex w-full items-center gap-2.5 rounded-md px-3 py-1.5 text-sm transition-colors ${
           isActive
             ? "bg-primary/10 font-medium text-primary"
-            : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            : "text-muted-foreground hover:bg-muted/80 hover:text-foreground"
         }`}
       >
         {item.icon}
         <span className="flex-1 text-left">{item.label}</span>
         {expanded ? (
-          <ChevronDown className="size-3.5" />
+          <ChevronDown className="size-3.5 opacity-50" />
         ) : (
-          <ChevronRight className="size-3.5" />
+          <ChevronRight className="size-3.5 opacity-50" />
         )}
       </button>
 
       {expanded && (
-        <ul className="ml-4 mt-1 flex flex-col gap-0.5 border-l pl-3">
+        <ul className="ml-4 mt-0.5 flex flex-col gap-0.5 border-l border-border/50 pl-3">
           {visibleChildren!.map((child) => (
             <NavChildEntry key={child.href + child.label} child={child} pathname={pathname} />
           ))}
@@ -234,7 +234,7 @@ function NavChildEntry({ child, pathname }: { child: NavChild; pathname: string 
       <li>
         <Link
           href={child.href}
-          className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors ${
+          className={`flex items-center gap-2 rounded-md px-2.5 py-1 text-sm transition-colors ${
             childActive
               ? "font-medium text-primary"
               : "text-muted-foreground hover:text-foreground"
@@ -264,7 +264,7 @@ function NavChildEntry({ child, pathname }: { child: NavChild; pathname: string 
       <button
         type="button"
         onClick={handleClick}
-        className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors ${
+        className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1 text-sm transition-colors ${
           childActive || anyGrandchildActive
             ? "font-medium text-primary"
             : "text-muted-foreground hover:text-foreground"
@@ -273,14 +273,14 @@ function NavChildEntry({ child, pathname }: { child: NavChild; pathname: string 
         {child.icon}
         <span className="flex-1 text-left">{child.label}</span>
         {expanded ? (
-          <ChevronDown className="size-3" />
+          <ChevronDown className="size-3 opacity-50" />
         ) : (
-          <ChevronRight className="size-3" />
+          <ChevronRight className="size-3 opacity-50" />
         )}
       </button>
 
       {expanded && (
-        <ul className="ml-3 mt-0.5 flex flex-col gap-0.5 border-l pl-2.5">
+        <ul className="ml-3 mt-0.5 flex flex-col gap-0.5 border-l border-border/50 pl-2.5">
           {child.children!.map((gc) => {
             const gcActive = pathname === gc.href;
             return (

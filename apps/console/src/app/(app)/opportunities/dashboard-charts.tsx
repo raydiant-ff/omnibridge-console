@@ -105,12 +105,7 @@ function renderPieLabel(props: any) {
       y={y}
       textAnchor={x > cx ? "start" : "end"}
       dominantBaseline="central"
-      style={{
-        fontFamily: "Inter, sans-serif",
-        fontWeight: 700,
-        fontSize: 12,
-        fill: "#171717",
-      }}
+      className="fill-foreground text-xs font-semibold"
     >
       {name} ({(percent * 100).toFixed(0)}%)
     </text>
@@ -247,7 +242,7 @@ function StagesPieChart({ opps, year }: { opps: OpportunityRow[]; year: number }
               />
               <Legend
                 formatter={(value: string) => (
-                  <span style={{ color: "#171717", fontFamily: "Inter, sans-serif", fontSize: 12, fontWeight: 600 }}>
+                  <span className="text-xs font-semibold text-foreground">
                     {value}
                   </span>
                 )}

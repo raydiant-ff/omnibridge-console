@@ -5,6 +5,15 @@ import Link from "next/link";
 import { ArrowUpDown, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -120,90 +129,88 @@ export function AccountsTable({ myAccounts, allAccounts, isAdmin }: AccountsTabl
   }
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        {isAdmin && (
-          <Select value={view} onValueChange={(v) => { setView(v as "my" | "all"); setOwnerFilter("__all__"); setCsmFilter("__all__"); setStatusFilter("__all__"); }}>
-            <SelectTrigger className="h-8 w-[160px] text-xs">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="my">My Accounts</SelectItem>
-              <SelectItem value="all">All Accounts</SelectItem>
-            </SelectContent>
-          </Select>
-        )}
-
-        <Select value={ownerFilter} onValueChange={setOwnerFilter}>
-          <SelectTrigger className="h-8 w-[160px] text-xs">
-            <SelectValue placeholder="Owner" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">All Owners</SelectItem>
-            {owners.map((o) => (
-              <SelectItem key={o} value={o}>{o}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={csmFilter} onValueChange={setCsmFilter}>
-          <SelectTrigger className="h-8 w-[160px] text-xs">
-            <SelectValue placeholder="CSM" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">All CSMs</SelectItem>
-            {csms.map((c) => (
-              <SelectItem key={c} value={c}>{c}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="h-8 w-[140px] text-xs">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="__all__">All Statuses</SelectItem>
-            {statuses.map((s) => (
-              <SelectItem key={s} value={s}>{s}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-
-        <span className="ml-auto text-xs text-muted-foreground">
-          {filtered.length} account{filtered.length !== 1 ? "s" : ""}
-        </span>
-      </div>
-
-      {/* Table */}
-      {filtered.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-12 text-center">
-          <p className="text-sm font-medium">No accounts match the current filters</p>
-          <p className="text-sm text-muted-foreground">
-            Try adjusting your filters.
-          </p>
+    <Card>
+      <CardHeader className="border-b">
+        <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-1">
+            <CardTitle>Accounts</CardTitle>
+            <CardDescription>
+              {filtered.length} account{filtered.length !== 1 ? "s" : ""}
+              {filtered.length !== sourceAccounts.length && ` of ${sourceAccounts.length}`}
+            </CardDescription>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {isAdmin && (
+              <Select value={view} onValueChange={(v) => { setView(v as "my" | "all"); setOwnerFilter("__all__"); setCsmFilter("__all__"); setStatusFilter("__all__"); }}>
+                <SelectTrigger className="h-8 w-[140px] text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="my">My Accounts</SelectItem>
+                  <SelectItem value="all">All Accounts</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+            <Select value={ownerFilter} onValueChange={setOwnerFilter}>
+              <SelectTrigger className="h-8 w-[140px] text-xs">
+                <SelectValue placeholder="Owner" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All Owners</SelectItem>
+                {owners.map((o) => (
+                  <SelectItem key={o} value={o}>{o}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={csmFilter} onValueChange={setCsmFilter}>
+              <SelectTrigger className="h-8 w-[140px] text-xs">
+                <SelectValue placeholder="CSM" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All CSMs</SelectItem>
+                {csms.map((c) => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger className="h-8 w-[130px] text-xs">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__all__">All Statuses</SelectItem>
+                {statuses.map((s) => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <thead className="border-b bg-muted/40">
-              <tr>
-                <th className="h-9 px-2 text-left font-medium whitespace-nowrap">Account Name</th>
-                <th className="h-9 px-2 text-left font-medium whitespace-nowrap">First Closed Won</th>
-                <th className="h-9 px-2 text-left font-medium whitespace-nowrap">Owner</th>
-                <th className="h-9 px-2 text-left font-medium whitespace-nowrap">CSM</th>
-                <th className="h-9 px-2 text-left font-medium whitespace-nowrap">Status</th>
-                <th className="h-9 px-2 text-right font-medium whitespace-nowrap">
+      </CardHeader>
+      <CardContent className="p-0">
+        {filtered.length === 0 ? (
+          <div className="px-6 py-12 text-center text-sm text-muted-foreground">
+            No accounts match the current filters. Try adjusting your filters.
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Account Name</TableHead>
+                <TableHead>First Closed Won</TableHead>
+                <TableHead>Owner</TableHead>
+                <TableHead>CSM</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">
                   <SortButton field="mrr" label="MRR" activeField={sortField} activeDir={sortDir} onToggle={toggleSort} />
-                </th>
-                <th className="h-9 px-2 text-right font-medium whitespace-nowrap">
+                </TableHead>
+                <TableHead className="text-right">
                   <SortButton field="arr" label="ARR" activeField={sortField} activeDir={sortDir} onToggle={toggleSort} />
-                </th>
-                <th className="h-9 px-2 text-left font-medium whitespace-nowrap">Links</th>
-              </tr>
-            </thead>
-            <tbody>
+                </TableHead>
+                <TableHead>Links</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {filtered.map((a) => {
                 const sfBase = process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://raydiant.lightning.force.com";
                 const sfUrl = `${sfBase}/lightning/r/Account/${a.id}/view`;
@@ -212,8 +219,8 @@ export function AccountsTable({ myAccounts, allAccounts, isAdmin }: AccountsTabl
                   : null;
 
                 return (
-                  <tr key={a.id} className="border-b transition-colors hover:bg-muted/50">
-                    <td className="p-2 align-middle whitespace-nowrap">
+                  <TableRow key={a.id}>
+                    <TableCell className="whitespace-nowrap">
                       <Link
                         href={`/customers/${a.id}`}
                         className="font-medium hover:underline"
@@ -221,32 +228,32 @@ export function AccountsTable({ myAccounts, allAccounts, isAdmin }: AccountsTabl
                       >
                         {a.name.length > 40 ? `${a.name.slice(0, 40)}…` : a.name}
                       </Link>
-                    </td>
-                    <td className="p-2 align-middle whitespace-nowrap text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
                       {fmtDate(a.dateOfFirstClosedWon)}
-                    </td>
-                    <td className="max-w-[160px] truncate p-2 align-middle text-muted-foreground" title={a.ownerName ?? undefined}>
+                    </TableCell>
+                    <TableCell className="max-w-[160px] truncate text-muted-foreground" title={a.ownerName ?? undefined}>
                       {a.ownerName ?? "—"}
-                    </td>
-                    <td className="max-w-[160px] truncate p-2 align-middle text-muted-foreground" title={a.csmName ?? undefined}>
+                    </TableCell>
+                    <TableCell className="max-w-[160px] truncate text-muted-foreground" title={a.csmName ?? undefined}>
                       {a.csmName ?? "—"}
-                    </td>
-                    <td className="p-2 align-middle whitespace-nowrap">
+                    </TableCell>
+                    <TableCell>
                       {a.status ? (
-                        <Badge variant={a.status === "Active" || a.status === "Active Customer" ? "default" : "secondary"}>
+                        <Badge variant={a.status === "Active" || a.status === "Active Customer" ? "success" : "secondary"}>
                           {a.status}
                         </Badge>
                       ) : (
                         <span className="text-muted-foreground">—</span>
                       )}
-                    </td>
-                    <td className="p-2 align-middle text-right font-mono whitespace-nowrap">
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
                       {fmtCurrency(a.accountValue)}
-                    </td>
-                    <td className="p-2 align-middle text-right font-mono whitespace-nowrap">
+                    </TableCell>
+                    <TableCell className="text-right font-mono">
                       {fmtCurrency(a.totalArr)}
-                    </td>
-                    <td className="p-2 align-middle whitespace-nowrap">
+                    </TableCell>
+                    <TableCell>
                       <div className="flex items-center gap-1.5">
                         <Button variant="outline" size="sm" className="h-7 gap-1 px-2" asChild>
                           <a href={sfUrl} target="_blank" rel="noopener noreferrer">
@@ -270,14 +277,14 @@ export function AccountsTable({ myAccounts, allAccounts, isAdmin }: AccountsTabl
                           </Button>
                         )}
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </div>
+            </TableBody>
+          </Table>
+        )}
+      </CardContent>
+    </Card>
   );
 }
