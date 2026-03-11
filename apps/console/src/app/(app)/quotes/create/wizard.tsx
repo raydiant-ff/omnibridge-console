@@ -2,23 +2,25 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { PickCustomer } from "./steps/pick-customer";
-import { PickBillToContact } from "./steps/pick-bill-to-contact";
-import { PickLineItems } from "./steps/pick-line-items";
-import { PickTerms } from "./steps/pick-terms";
-import { PickPaymentPath } from "./steps/pick-payment-path";
+import { ConfigureQuote } from "./steps/configure-quote";
+import { ConfigureCoTerm } from "../co-term/configure-co-term";
 import { ReviewQuote } from "./steps/review-quote";
-import { PandaDocPreview } from "./steps/pandadoc-preview";
+import { ReviewCoTerm } from "../co-term/review-co-term";
+import { DocumentPreview } from "./steps/document-preview";
 import { QuoteSuccess } from "./steps/quote-success";
 import { cancelQuote } from "@/lib/actions/quotes";
 import type { QuoteLineItem, CreateQuoteResult } from "@/lib/actions/quotes";
+import type { CustomerSubscription } from "@/lib/queries/customer-subscriptions";
+import type { ExistingSubItem } from "@/lib/actions/co-term-quote";
 import type { ContractTerm, BillingFrequency } from "@/lib/billing-utils";
+import type { EffectiveTiming } from "./steps/pick-timing";
+
+export type QuoteType = "New" | "Expansion" | "Renewal" | "Amendment";
+export type ContractMode = "new_contract" | "co_term";
 
 const STEP_LABELS = [
   "Customer",
-  "Bill-To Contact",
-  "Terms",
-  "Line Items",
-  "Payment",
+  "Configure",
   "Review",
   "Preview",
 ] as const;
@@ -37,6 +39,7 @@ export interface QuoteWizardState {
   customer: QuoteCustomer | null;
   opportunityId: string;
   billToContactId: string;
+  contractMode: ContractMode;
   lineItems: QuoteLineItem[];
   contractTerm: ContractTerm;
   billingFrequency: BillingFrequency;
@@ -47,6 +50,10 @@ export interface QuoteWizardState {
   daysUntilDue: string;
   idempotencyKey: string;
   dryRun: boolean;
+  // Co-term specific fields (only used when contractMode === "co_term")
+  selectedSubscription: CustomerSubscription | null;
+  existingItems: ExistingSubItem[];
+  effectiveTiming: EffectiveTiming;
 }
 
 interface PersistedSession {
@@ -60,9 +67,9 @@ function generateIdempotencyKey() {
   return `cqt_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function loadSession(): PersistedSession | null {
+function loadSessionByKey(key: string): PersistedSession | null {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = sessionStorage.getItem(key);
     if (!raw) return null;
     return JSON.parse(raw) as PersistedSession;
   } catch {
@@ -70,15 +77,15 @@ function loadSession(): PersistedSession | null {
   }
 }
 
-function saveSession(session: PersistedSession) {
+function saveSessionByKey(key: string, session: PersistedSession) {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+    sessionStorage.setItem(key, JSON.stringify(session));
   } catch { /* storage full or unavailable */ }
 }
 
-function clearSession() {
+function clearSessionByKey(key: string) {
   try {
-    sessionStorage.removeItem(STORAGE_KEY);
+    sessionStorage.removeItem(key);
   } catch { /* noop */ }
 }
 
@@ -86,6 +93,7 @@ const DEFAULT_STATE: QuoteWizardState = {
   customer: null,
   opportunityId: "",
   billToContactId: "",
+  contractMode: "new_contract",
   lineItems: [],
   contractTerm: "1yr",
   billingFrequency: "monthly",
@@ -96,17 +104,54 @@ const DEFAULT_STATE: QuoteWizardState = {
   daysUntilDue: "30",
   idempotencyKey: generateIdempotencyKey(),
   dryRun: true,
+  selectedSubscription: null,
+  existingItems: [],
+  effectiveTiming: "immediate",
 };
 
-export function QuoteWizard() {
-  const [step, setStep] = useState(0);
+function deriveBillingFrequency(sub: CustomerSubscription): BillingFrequency {
+  const interval = sub.billingInterval;
+  const count = sub.billingIntervalCount;
+  if (interval === "month") {
+    if (count === 1) return "monthly";
+    if (count === 3) return "quarterly";
+    if (count === 6) return "semi_annual";
+  }
+  if (interval === "year") {
+    if (count === 1) return "annual";
+    if (count === 2) return "2yr";
+    if (count === 3) return "3yr";
+  }
+  return "monthly";
+}
+
+export interface QuoteWizardProps {
+  quoteType?: QuoteType;
+  initialState?: Partial<QuoteWizardState>;
+  initialStep?: number;
+  storageKey?: string;
+  badge?: React.ReactNode;
+}
+
+export function QuoteWizard({
+  quoteType = "New",
+  initialState,
+  initialStep = 0,
+  storageKey = STORAGE_KEY,
+  badge,
+}: QuoteWizardProps = {}) {
+  const mergedDefault: QuoteWizardState = initialState
+    ? { ...DEFAULT_STATE, ...initialState, idempotencyKey: generateIdempotencyKey() }
+    : DEFAULT_STATE;
+
+  const [step, setStep] = useState(initialStep);
   const [result, setResult] = useState<CreateQuoteResult | null>(null);
   const [docSent, setDocSent] = useState(false);
-  const [state, setState] = useState<QuoteWizardState>(DEFAULT_STATE);
+  const [state, setState] = useState<QuoteWizardState>(mergedDefault);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    const saved = loadSession();
+    const saved = loadSessionByKey(storageKey);
     if (saved) {
       setStep(saved.step);
       setResult(saved.result);
@@ -114,12 +159,12 @@ export function QuoteWizard() {
       setState(saved.state);
     }
     setHydrated(true);
-  }, []);
+  }, [storageKey]);
 
   useEffect(() => {
     if (!hydrated) return;
-    saveSession({ step, state, result, docSent });
-  }, [step, state, result, docSent, hydrated]);
+    saveSessionByKey(storageKey, { step, state, result, docSent });
+  }, [step, state, result, docSent, hydrated, storageKey]);
 
   const update = useCallback(
     <K extends keyof QuoteWizardState>(key: K, value: QuoteWizardState[K]) => {
@@ -132,25 +177,48 @@ export function QuoteWizard() {
     [],
   );
 
-  const next = useCallback(() => setStep((s) => Math.min(s + 1, 5)), []);
+  const next = useCallback(() => setStep((s) => Math.min(s + 1, STEP_LABELS.length - 1)), []);
   const back = useCallback(() => setStep((s) => Math.max(s - 1, 0)), []);
+
+  const isCoTerm = state.contractMode === "co_term";
+
+  function handleSubscriptionSelect(sub: CustomerSubscription) {
+    const existing: ExistingSubItem[] = sub.items.map((item) => ({
+      subscriptionItemId: item.id,
+      priceId: item.priceId,
+      productName: item.productName,
+      quantity: item.quantity,
+      unitAmount: item.unitAmount,
+      interval: item.interval,
+      intervalCount: item.intervalCount,
+    }));
+
+    setState((prev) => ({
+      ...prev,
+      selectedSubscription: sub,
+      existingItems: existing,
+      billingFrequency: deriveBillingFrequency(sub),
+      collectionMethod: sub.collectionMethod as "charge_automatically" | "send_invoice",
+      idempotencyKey: generateIdempotencyKey(),
+    }));
+  }
 
   function handleQuoteResult(r: CreateQuoteResult) {
     setResult(r);
-    setStep(5);
+    setStep(3);
   }
 
   function handleDocSent() {
     setDocSent(true);
-    clearSession();
+    clearSessionByKey(storageKey);
   }
 
   function handleStartNew() {
-    clearSession();
-    setStep(0);
+    clearSessionByKey(storageKey);
+    setStep(initialStep);
     setResult(null);
     setDocSent(false);
-    setState({ ...DEFAULT_STATE, idempotencyKey: generateIdempotencyKey() });
+    setState({ ...mergedDefault, idempotencyKey: generateIdempotencyKey() });
   }
 
   if (docSent && result?.success) {
@@ -160,6 +228,7 @@ export function QuoteWizard() {
   return (
     <div className="flex flex-col gap-6">
       <nav aria-label="Wizard progress" className="flex items-center gap-1">
+        {badge}
         {STEP_LABELS.map((label, i) => (
           <div key={label} className="flex items-center gap-1">
             {i > 0 && (
@@ -197,59 +266,58 @@ export function QuoteWizard() {
 
       {step === 0 && (
         <PickCustomer
+          quoteType={quoteType}
           selected={state.customer}
           opportunityId={state.opportunityId}
+          billToContactId={state.billToContactId}
+          contractMode={state.contractMode}
           onSelect={(c) => update("customer", c as QuoteWizardState["customer"])}
           onOpportunityChange={(v) => update("opportunityId", v)}
+          onBillToContactChange={(v) => update("billToContactId", v)}
+          onContractModeChange={(v) => update("contractMode", v)}
           onNext={next}
         />
       )}
-      {step === 1 && (
-        <PickBillToContact
-          sfAccountId={state.customer?.sfAccountId || ""}
-          billToContactId={state.billToContactId}
-          onChange={(contactId) => update("billToContactId", contactId)}
-          onNext={next}
-          onBack={back}
-        />
-      )}
-      {step === 2 && (
-        <PickTerms
+      {step === 1 && !isCoTerm && (
+        <ConfigureQuote
           contractTerm={state.contractTerm}
           billingFrequency={state.billingFrequency}
           effectiveDate={state.effectiveDate}
           trialPeriodDays={state.trialPeriodDays}
           expiresInDays={state.expiresInDays}
           lineItems={state.lineItems}
+          collectionMethod={state.collectionMethod}
+          daysUntilDue={state.daysUntilDue}
           onChangeContractTerm={(v) => update("contractTerm", v)}
           onChangeBillingFrequency={(v) => update("billingFrequency", v)}
           onChangeEffectiveDate={(v) => update("effectiveDate", v)}
           onChangeTrialDays={(v) => update("trialPeriodDays", v)}
           onChangeExpiresIn={(v) => update("expiresInDays", v)}
-          onNext={next}
-          onBack={back}
-        />
-      )}
-      {step === 3 && (
-        <PickLineItems
-          lineItems={state.lineItems}
-          billingFrequency={state.billingFrequency}
-          onChange={(items) => update("lineItems", items)}
-          onNext={next}
-          onBack={back}
-        />
-      )}
-      {step === 4 && (
-        <PickPaymentPath
-          collectionMethod={state.collectionMethod}
-          daysUntilDue={state.daysUntilDue}
+          onChangeLineItems={(items) => update("lineItems", items)}
           onChangeMethod={(v) => update("collectionMethod", v)}
           onChangeDays={(v) => update("daysUntilDue", v)}
           onNext={next}
           onBack={back}
         />
       )}
-      {step === 5 && (
+      {step === 1 && isCoTerm && state.customer?.stripeCustomerId && (
+        <ConfigureCoTerm
+          stripeCustomerId={state.customer.stripeCustomerId}
+          selectedSubscription={state.selectedSubscription}
+          lineItems={state.lineItems}
+          contractTerm={state.contractTerm}
+          billingFrequency={state.billingFrequency}
+          timing={state.effectiveTiming}
+          onSelectSubscription={handleSubscriptionSelect}
+          onChangeContractTerm={(v) => update("contractTerm", v)}
+          onChangeBillingFrequency={(v) => update("billingFrequency", v)}
+          onChangeLineItems={(items) => update("lineItems", items)}
+          onChangeTiming={(t) => update("effectiveTiming", t)}
+          onNext={next}
+          onBack={back}
+        />
+      )}
+      {step === 2 && !isCoTerm && (
         <ReviewQuote
           state={state}
           onBack={back}
@@ -257,8 +325,31 @@ export function QuoteWizard() {
           onToggleDryRun={(v) => update("dryRun", v)}
         />
       )}
-      {step === 6 && result && (
-        <PandaDocPreview
+      {step === 2 && isCoTerm && (
+        <ReviewCoTerm
+          state={{
+            customer: state.customer as any,
+            opportunityId: state.opportunityId,
+            billToContactId: state.billToContactId,
+            selectedSubscription: state.selectedSubscription,
+            existingItems: state.existingItems,
+            lineItems: state.lineItems,
+            contractTerm: state.contractTerm,
+            billingFrequency: state.billingFrequency,
+            effectiveTiming: state.effectiveTiming,
+            collectionMethod: state.collectionMethod,
+            daysUntilDue: state.daysUntilDue,
+            expiresInDays: state.expiresInDays,
+            idempotencyKey: state.idempotencyKey,
+            dryRun: state.dryRun,
+          }}
+          onBack={back}
+          onResult={handleQuoteResult}
+          onToggleDryRun={(v) => update("dryRun", v)}
+        />
+      )}
+      {step === 3 && result && (
+        <DocumentPreview
           result={result}
           onSent={handleDocSent}
           onBack={async () => {
@@ -267,7 +358,7 @@ export function QuoteWizard() {
             }
             setResult(null);
             setState((prev) => ({ ...prev, idempotencyKey: generateIdempotencyKey() }));
-            setStep(4);
+            setStep(2);
           }}
         />
       )}

@@ -29,31 +29,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatCurrency, formatDate } from "@/lib/format";
+import { formatCurrency, formatDate, quoteStatusVariant } from "@/lib/format";
 
 const ALL = "__all__";
-
-function statusVariant(
-  status: string,
-): "default" | "secondary" | "destructive" | "outline" {
-  switch (status) {
-    case "accepted":
-      return "default";
-    case "open":
-      return "secondary";
-    case "canceled":
-      return "destructive";
-    default:
-      return "outline";
-  }
-}
 
 function HealthBadge({ q }: { q: QuoteRow }) {
   const isAccepted = q.status === "accepted";
   const isDraft = q.status === "draft" || q.status === "dry_run";
 
   const hasSf = !!q.sfQuoteId;
-  const hasPandadoc = !!q.pandadocDocId;
+  const hasDocuSign = !!q.docusignEnvelopeId;
   const hasSub = !!q.stripeSubscriptionId;
 
   let errors = 0;
@@ -63,7 +48,7 @@ function HealthBadge({ q }: { q: QuoteRow }) {
     if (!isDraft) errors++;
     else warnings++;
   }
-  if (!hasPandadoc && !isDraft) warnings++;
+  if (!hasDocuSign && !isDraft) warnings++;
   if (isAccepted && !hasSub) errors++;
 
   if (errors > 0) {
@@ -108,14 +93,14 @@ function SyncBadges({ q }: { q: QuoteRow }) {
         SF
       </span>
       <span
-        title={q.pandadocDocId ? `PD: ${q.pandadocDocId}` : "No PandaDoc"}
+        title={q.docusignEnvelopeId ? `DS: ${q.docusignEnvelopeId}` : "No DocuSign"}
         className={`rounded px-1.5 py-0.5 text-[10px] font-medium leading-none ${
-          q.pandadocDocId
+          q.docusignEnvelopeId
             ? "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-300"
             : "bg-muted text-muted-foreground/60"
         }`}
       >
-        PD
+        DS
       </span>
       <span
         title={
@@ -231,7 +216,7 @@ export function QuoteListTable({ quotes }: { quotes: QuoteRow[] }) {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={statusVariant(q.status)}>
+                    <Badge variant={quoteStatusVariant(q.status)}>
                       {q.status}
                     </Badge>
                   </TableCell>

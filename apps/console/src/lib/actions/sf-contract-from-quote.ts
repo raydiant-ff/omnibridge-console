@@ -39,9 +39,7 @@ export async function createSfRecordsFromQuote(
 
   try {
     // Parse line items
-    const lineItems: QuoteLineItem[] = record.lineItemsJson 
-      ? JSON.parse(record.lineItemsJson) 
-      : [];
+    const lineItems: QuoteLineItem[] = (record.lineItemsJson as QuoteLineItem[] | null) ?? [];
 
     if (lineItems.length === 0) {
       return {
@@ -51,22 +49,19 @@ export async function createSfRecordsFromQuote(
       };
     }
 
-    // Parse SF Quote Line IDs
-    const sfQuoteLineIds: string[] = record.sfQuoteLineIds 
-      ? JSON.parse(record.sfQuoteLineIds as string)
-      : [];
+    const sfQuoteLineIds: string[] = (record.sfQuoteLineIds as string[]) ?? [];
 
     // Get Bill-To Contact ID from account
     let customerSignedContactId: string | undefined;
     if (!dryRun) {
       try {
-        const { soql } = await import("@omnibridge/salesforce");
+        const { soql, escapeSoql } = await import("@omnibridge/salesforce");
         const accounts = await soql<{
           blng__BillToContact__c?: string;
         }>(`
           SELECT blng__BillToContact__c 
           FROM Account 
-          WHERE Id = '${record.sfAccountId}' 
+          WHERE Id = '${escapeSoql(record.sfAccountId)}' 
           LIMIT 1
         `);
         customerSignedContactId = accounts[0]?.blng__BillToContact__c || undefined;
@@ -83,7 +78,7 @@ export async function createSfRecordsFromQuote(
       stripeSubscriptionId,
       contractTerm: (record.contractTerm as any) || "1yr",
       billingFrequency: (record.billingFrequency as any) || "annual",
-      effectiveDate: record.createdAt.toISOString().split("T")[0],
+      effectiveDate: ((record as any).effectiveDate ?? record.createdAt).toISOString().split("T")[0],
       collectionMethod: record.collectionMethod || "send_invoice",
       opportunityId: record.opportunityId || undefined,
       customerSignedDate,
@@ -109,11 +104,9 @@ export async function createSfRecordsFromQuote(
       sfQuoteLineIds,
       billingFrequency: (record.billingFrequency as any) || "annual",
       contractTerm: (record.contractTerm as any) || "1yr",
-      effectiveDate: record.createdAt.toISOString().split("T")[0],
+      effectiveDate: ((record as any).effectiveDate ?? record.createdAt).toISOString().split("T")[0],
       lineItems,
-      stripeSubItemIds: record.stripeSubItemIds 
-        ? JSON.parse(record.stripeSubItemIds as string)
-        : undefined,
+      stripeSubItemIds: (record.stripeSubItemIds as string[]) ?? undefined,
     };
 
     const subscriptionResult = await createSfSubscriptionsFromQuote(subscriptionInput, dryRun);

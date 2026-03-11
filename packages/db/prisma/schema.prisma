@@ -213,9 +213,10 @@ model QuoteRecord {
   currency         String    @default("usd")
   expiresAt        DateTime? @map("expires_at")
   pdfUrl           String?   @map("pdf_url")
-  lineItemsJson    String?   @map("line_items_json")
-  pandadocDocId    String?   @map("pandadoc_document_id")
-  signerName       String?   @map("signer_name")
+  lineItemsJson    Json?     @map("line_items_json")
+  pandadocDocId       String?   @map("pandadoc_document_id")
+  docusignEnvelopeId  String?   @map("docusign_envelope_id")
+  signerName          String?   @map("signer_name")
   signerEmail      String?   @map("signer_email")
   contractTerm     String?   @map("contract_term")
   billingFrequency String?   @map("billing_frequency")
@@ -228,6 +229,16 @@ model QuoteRecord {
   sfContractId         String?   @map("sf_contract_id")
   sfSubscriptionIds    Json?     @map("sf_subscription_ids")
   sfQuoteLineIds       Json?     @map("sf_quote_line_ids")
+  billToContactId      String?   @map("bill_to_contact_id")
+  effectiveDate        DateTime? @map("effective_date")
+  billingAddressJson   Json?     @map("billing_address_json")
+  shippingAddressJson  Json?     @map("shipping_address_json")
+  quoteType            String    @default("new") @map("quote_type")
+  parentSubscriptionId String?   @map("parent_subscription_id")
+  parentScheduleId     String?   @map("parent_schedule_id")
+  effectiveTiming      String?   @map("effective_timing")
+  prorationAmountCents Int?      @map("proration_amount_cents")
+  existingItemsJson    Json?     @map("existing_items_json")
   dryRun               Boolean   @default(false) @map("dry_run")
   createdBy        String    @map("created_by")
   createdAt        DateTime  @default(now()) @map("created_at")
@@ -240,5 +251,64 @@ model QuoteRecord {
   @@index([opportunityId])
   @@index([sfQuoteId])
   @@index([createdBy])
+  @@index([parentSubscriptionId])
+  @@index([docusignEnvelopeId])
+  @@index([stripeCustomerId])
+  @@index([quoteType, status])
+  @@index([status, createdAt])
   @@map("quote_records")
+}
+
+// ---------------------------------------------------------------------------
+// Stripe subscription mirror (local copy for instant dashboard queries)
+// ---------------------------------------------------------------------------
+
+model StripeSubscription {
+  id                 String    @id // sub_xxx — Stripe's native ID
+  customerId         String    @map("customer_id")
+  customerName       String    @map("customer_name")
+  status             String
+  collectionMethod   String    @map("collection_method")
+  currency           String    @default("usd")
+  currentPeriodStart DateTime  @map("current_period_start")
+  currentPeriodEnd   DateTime  @map("current_period_end")
+  cancelAtPeriodEnd  Boolean   @default(false) @map("cancel_at_period_end")
+  cancelAt           DateTime? @map("cancel_at")
+  canceledAt         DateTime? @map("canceled_at")
+  trialStart         DateTime? @map("trial_start")
+  trialEnd           DateTime? @map("trial_end")
+  startDate          DateTime  @map("start_date")
+  created            DateTime
+  billingCycleAnchor DateTime  @map("billing_cycle_anchor")
+  hasSchedule        Boolean   @default(false) @map("has_schedule")
+  hasDiscount        Boolean   @default(false) @map("has_discount")
+  hasPaymentMethod   Boolean   @default(false) @map("has_payment_method")
+  metadata           Json?
+  syncedAt           DateTime  @default(now()) @map("synced_at")
+
+  items StripeSubscriptionItem[]
+
+  @@index([status])
+  @@index([customerId])
+  @@map("stripe_subscriptions")
+}
+
+model StripeSubscriptionItem {
+  id              String   @id // si_xxx — Stripe's native ID
+  subscriptionId  String   @map("subscription_id")
+  productId       String   @map("product_id")
+  productName     String   @map("product_name")
+  priceId         String   @map("price_id")
+  unitAmount      Int      @map("unit_amount")
+  currency        String   @default("usd")
+  billingInterval String?  @map("billing_interval")
+  intervalCount   Int      @default(1) @map("interval_count")
+  quantity        Int      @default(1)
+  usageType       String   @default("licensed") @map("usage_type")
+  syncedAt        DateTime @default(now()) @map("synced_at")
+
+  subscription StripeSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@index([subscriptionId])
+  @@map("stripe_subscription_items")
 }

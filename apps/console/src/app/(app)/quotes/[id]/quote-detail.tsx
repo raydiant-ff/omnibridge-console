@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { formatCurrency, formatDateTime, formatDate } from "@/lib/format";
+import { formatCurrency, formatDateTime, formatDate, quoteStatusVariant } from "@/lib/format";
 import type { QuoteDetail, AuditTimelineEntry } from "@/lib/queries/quotes";
 
 interface Props {
@@ -23,27 +23,12 @@ interface Props {
 const STRIPE_DASHBOARD = "https://dashboard.stripe.com";
 const SF_BASE = process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://raydiant.lightning.force.com";
 
-function statusVariant(
-  status: string,
-): "default" | "secondary" | "destructive" | "outline" {
-  switch (status) {
-    case "accepted":
-      return "default";
-    case "open":
-      return "secondary";
-    case "canceled":
-      return "destructive";
-    default:
-      return "outline";
-  }
-}
-
 const ACTION_COLORS: Record<string, string> = {
   "quote.created": "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
   "quote.dry_run": "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
   "quote.finalized": "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-300",
-  "quote.pandadoc_created": "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
-  "quote.pandadoc_sent": "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300",
+  "quote.docusign_created": "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300",
+  "quote.docusign_sent": "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300",
   "quote.accepted_via_checkout": "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
   "quote.invoice_paid": "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
   "subscription.schedule_created": "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-300",
@@ -68,7 +53,7 @@ export function QuoteDetailView({ quote, timeline }: Props) {
             {quote.stripeQuoteNumber ?? quote.stripeQuoteId}
           </span>
         </div>
-        <Badge variant={statusVariant(quote.status)} className="ml-auto">
+        <Badge variant={quoteStatusVariant(quote.status)} className="ml-auto">
           {quote.status}
         </Badge>
       </div>
@@ -77,6 +62,8 @@ export function QuoteDetailView({ quote, timeline }: Props) {
         <CrossSystemPanel quote={quote} />
         <ValidationPanel quote={quote} />
       </div>
+
+      <LineItemsPanel lineItemsJson={quote.lineItemsJson} currency={quote.currency} />
 
       <LifecycleTimeline timeline={timeline} />
     </>
@@ -97,21 +84,24 @@ function CrossSystemPanel({ quote }: { quote: QuoteDetail }) {
           value={quote.stripeQuoteId}
           subValue={quote.stripeQuoteNumber}
           href={`${STRIPE_DASHBOARD}/quotes/${quote.stripeQuoteId}`}
+          linkLabel="Open in Stripe"
         />
         <IdRow
-          label="SF Quote"
+          label="Salesforce Quote"
           value={quote.sfQuoteId}
           subValue={quote.sfQuoteNumber}
-          href={quote.sfQuoteId ? `${SF_BASE}/${quote.sfQuoteId}` : undefined}
+          href={quote.sfQuoteId ? `${SF_BASE}/lightning/r/Stripe_Quote__c/${quote.sfQuoteId}/view` : undefined}
+          linkLabel="Open in Salesforce"
         />
         <IdRow
-          label="PandaDoc"
-          value={quote.pandadocDocId}
+          label="DocuSign"
+          value={quote.docusignEnvelopeId}
           href={
-            quote.pandadocDocId
-              ? `https://app.pandadoc.com/a/#/documents/${quote.pandadocDocId}`
+            quote.docusignEnvelopeId
+              ? `https://app.docusign.com/documents/details/${quote.docusignEnvelopeId}`
               : undefined
           }
+          linkLabel="Open in DocuSign"
         />
 
         <Separator />
@@ -120,22 +110,25 @@ function CrossSystemPanel({ quote }: { quote: QuoteDetail }) {
           label="Stripe Customer"
           value={quote.stripeCustomerId}
           href={`${STRIPE_DASHBOARD}/customers/${quote.stripeCustomerId}`}
+          linkLabel="Open in Stripe"
         />
         <IdRow
-          label="SF Account"
+          label="Salesforce Account"
           value={quote.sfAccountId}
           href={
-            quote.sfAccountId ? `${SF_BASE}/${quote.sfAccountId}` : undefined
+            quote.sfAccountId ? `${SF_BASE}/lightning/r/Account/${quote.sfAccountId}/view` : undefined
           }
+          linkLabel="Open in Salesforce"
         />
         <IdRow
           label="Opportunity"
           value={quote.opportunityId}
           href={
             quote.opportunityId
-              ? `${SF_BASE}/${quote.opportunityId}`
+              ? `${SF_BASE}/lightning/r/Opportunity/${quote.opportunityId}/view`
               : undefined
           }
+          linkLabel="Open in Salesforce"
         />
 
         {(quote.stripeSubscriptionId || quote.stripeScheduleId) && (
@@ -149,6 +142,7 @@ function CrossSystemPanel({ quote }: { quote: QuoteDetail }) {
                   ? `${STRIPE_DASHBOARD}/subscriptions/${quote.stripeSubscriptionId}`
                   : undefined
               }
+              linkLabel="Open in Stripe"
             />
             <IdRow
               label="Stripe Schedule"
@@ -158,12 +152,14 @@ function CrossSystemPanel({ quote }: { quote: QuoteDetail }) {
                   ? `${STRIPE_DASHBOARD}/subscription_schedules/${quote.stripeScheduleId}`
                   : undefined
               }
+              linkLabel="Open in Stripe"
             />
             {quote.sfContractId && (
               <IdRow
-                label="SF Contract"
+                label="Salesforce Contract"
                 value={quote.sfContractId}
-                href={`${SF_BASE}/${quote.sfContractId}`}
+                href={`${SF_BASE}/lightning/r/Contract/${quote.sfContractId}/view`}
+                linkLabel="Open in Salesforce"
               />
             )}
           </>
@@ -219,11 +215,13 @@ function IdRow({
   value,
   subValue,
   href,
+  linkLabel,
 }: {
   label: string;
   value: string | null;
   subValue?: string | null;
   href?: string;
+  linkLabel?: string;
 }) {
   return (
     <div className="flex items-center justify-between gap-2 text-sm">
@@ -236,7 +234,8 @@ function IdRow({
               href={href}
               target="_blank"
               rel="noopener noreferrer"
-              className="shrink-0 text-muted-foreground hover:text-foreground"
+              title={linkLabel}
+              className="shrink-0 text-muted-foreground hover:text-foreground transition-colors"
             >
               <ExternalLink className="size-3" />
             </a>
@@ -257,15 +256,15 @@ function ValidationPanel({ quote }: { quote: QuoteDetail }) {
       detail: quote.stripeQuoteId,
     },
     {
-      label: "SF quote linked",
+      label: "Salesforce quote linked",
       passed: !!quote.sfQuoteId,
       detail: quote.sfQuoteId ?? "Not created",
     },
     {
-      label: "PandaDoc document linked",
+      label: "DocuSign envelope linked",
       passed:
-        quote.status === "draft" ? null : !!quote.pandadocDocId,
-      detail: quote.pandadocDocId ?? (quote.status === "draft" ? "Pending" : "Missing"),
+        quote.status === "draft" ? null : !!quote.docusignEnvelopeId,
+      detail: quote.docusignEnvelopeId ?? (quote.status === "draft" ? "Pending" : "Missing"),
     },
     {
       label: "Stripe subscription created",
@@ -350,6 +349,117 @@ function ValidationPanel({ quote }: { quote: QuoteDetail }) {
             )}
           </div>
         ))}
+      </CardContent>
+    </Card>
+  );
+}
+
+interface ParsedLineItem {
+  productName: string;
+  nickname: string;
+  quantity: number;
+  unitAmount: number;
+  overrideUnitAmount?: number | null;
+  currency: string;
+  interval: string;
+}
+
+function LineItemsPanel({
+  lineItemsJson,
+  currency,
+}: {
+  lineItemsJson: unknown;
+  currency: string;
+}) {
+  if (!lineItemsJson) return null;
+
+  let items: ParsedLineItem[];
+  try {
+    items = (Array.isArray(lineItemsJson) ? lineItemsJson : JSON.parse(lineItemsJson as string)) as ParsedLineItem[];
+  } catch {
+    return null;
+  }
+
+  if (items.length === 0) return null;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+          Line Items
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b text-left text-xs text-muted-foreground">
+                <th className="pb-2 pr-4 font-medium">Product</th>
+                <th className="pb-2 pr-4 font-medium text-right">Qty</th>
+                <th className="pb-2 pr-4 font-medium text-right">List Price</th>
+                <th className="pb-2 pr-4 font-medium text-right">Unit Price</th>
+                <th className="pb-2 font-medium text-right">Line Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {items.map((item, i) => {
+                const effectiveUnit = item.overrideUnitAmount ?? item.unitAmount;
+                const hasDiscount =
+                  item.overrideUnitAmount != null &&
+                  item.overrideUnitAmount < item.unitAmount;
+                const lineTotal = effectiveUnit * item.quantity;
+                const cur = item.currency || currency;
+
+                return (
+                  <tr key={i} className="border-b last:border-0">
+                    <td className="py-2 pr-4">
+                      <div className="font-medium">{item.productName}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {item.nickname} &middot; {item.interval}
+                      </div>
+                    </td>
+                    <td className="py-2 pr-4 text-right tabular-nums">
+                      {item.quantity}
+                    </td>
+                    <td className="py-2 pr-4 text-right tabular-nums">
+                      {formatCurrency(item.unitAmount, cur)}
+                    </td>
+                    <td className="py-2 pr-4 text-right tabular-nums">
+                      <span className={hasDiscount ? "text-green-600" : ""}>
+                        {formatCurrency(effectiveUnit, cur)}
+                      </span>
+                      {hasDiscount && (
+                        <span className="ml-1 text-xs text-green-600">
+                          ({Math.round(((item.unitAmount - effectiveUnit) / item.unitAmount) * 100)}% off)
+                        </span>
+                      )}
+                    </td>
+                    <td className="py-2 text-right font-medium tabular-nums">
+                      {formatCurrency(lineTotal, cur)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colSpan={4} className="pt-2 text-right font-medium">
+                  Total
+                </td>
+                <td className="pt-2 text-right font-bold tabular-nums">
+                  {formatCurrency(
+                    items.reduce(
+                      (sum, item) =>
+                        sum + (item.overrideUnitAmount ?? item.unitAmount) * item.quantity,
+                      0,
+                    ),
+                    currency,
+                  )}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
       </CardContent>
     </Card>
   );

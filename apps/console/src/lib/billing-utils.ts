@@ -184,6 +184,41 @@ export function billingFrequencyIntervalLabel(freq: BillingFrequency): string {
   }
 }
 
+/**
+ * Normalize a subscription item's unit_amount (in cents) to a monthly rate (in cents).
+ * Handles day/week/month/year intervals with an optional interval_count.
+ */
+export function computeItemMrr(
+  unitAmountCents: number,
+  interval: string | null,
+  intervalCount: number,
+  quantity: number,
+): number {
+  if (!interval) return 0;
+  const months = intervalToMonths(interval, intervalCount);
+  if (months <= 0) return 0;
+  return Math.round((unitAmountCents * quantity) / months);
+}
+
+/**
+ * Determine whether a price interval represents a one-time (non-recurring) charge.
+ */
+export function isOneTimePrice(interval: string | null | undefined): boolean {
+  return !interval || interval === "one_time" || interval === "one-time";
+}
+
+/**
+ * Compute a human-readable payment terms label from collection method + days until due.
+ */
+export function computePaymentTerms(
+  collectionMethod: string,
+  daysUntilDue: number | null | undefined,
+): string {
+  if (collectionMethod === "charge_automatically") return "Due on receipt";
+  if (daysUntilDue === 0) return "Due on receipt";
+  return daysUntilDue ? `Net ${daysUntilDue}` : "Net 30";
+}
+
 export function formatBillingCycleSummary(
   term: ContractTerm,
   freq: BillingFrequency,

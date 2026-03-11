@@ -99,33 +99,6 @@ function formatCents(amount: number, currency: string): string {
   }).format(amount / 100);
 }
 
-function summarizeEvent(type: string, data: Record<string, unknown>): string {
-  const obj = data.object as Record<string, unknown> | undefined;
-  switch (type) {
-    case "invoice.paid":
-      return `Invoice ${(obj?.number as string) ?? ""} was paid (${formatCents((obj?.amount_paid as number) ?? 0, (obj?.currency as string) ?? "usd")})`;
-    case "invoice.created":
-      return `Invoice ${(obj?.number as string) ?? ""} was created`;
-    case "invoice.payment_failed":
-      return `Payment failed for invoice ${(obj?.number as string) ?? ""}`;
-    case "payment_intent.succeeded":
-      return `Payment of ${formatCents((obj?.amount as number) ?? 0, (obj?.currency as string) ?? "usd")} succeeded`;
-    case "payment_intent.payment_failed":
-      return `Payment of ${formatCents((obj?.amount as number) ?? 0, (obj?.currency as string) ?? "usd")} failed`;
-    case "customer.subscription.created":
-      return "New subscription created";
-    case "customer.subscription.updated":
-      return "Subscription updated";
-    case "customer.subscription.deleted":
-      return "Subscription cancelled";
-    case "charge.succeeded":
-      return `Charge of ${formatCents((obj?.amount as number) ?? 0, (obj?.currency as string) ?? "usd")} succeeded`;
-    case "charge.failed":
-      return `Charge of ${formatCents((obj?.amount as number) ?? 0, (obj?.currency as string) ?? "usd")} failed`;
-    default:
-      return type.replace(/\./g, " ").replace(/_/g, " ");
-  }
-}
 
 async function _fetchStripeCustomerDetailFromApi(
   stripeCustomerId: string,
@@ -134,7 +107,7 @@ async function _fetchStripeCustomerDetailFromApi(
     const { getStripeClient } = await import("@omnibridge/stripe");
     const stripe = getStripeClient();
 
-    const [subscriptions, paymentIntents, invoices, events] = await Promise.all([
+    const [subscriptions, paymentIntents, invoices] = await Promise.all([
       stripe.subscriptions.list({
         customer: stripeCustomerId,
         limit: 20,
@@ -148,15 +121,7 @@ async function _fetchStripeCustomerDetailFromApi(
         customer: stripeCustomerId,
         limit: 20,
       }),
-      stripe.events.list({
-        limit: 25,
-      }),
     ]);
-
-    const customerEvents = events.data.filter((evt) => {
-      const obj = (evt.data.object as Record<string, unknown>);
-      return obj?.customer === stripeCustomerId;
-    });
 
     return {
       subscriptions: subscriptions.data.map((sub) => ({
@@ -167,16 +132,16 @@ async function _fetchStripeCustomerDetailFromApi(
         cancelAtPeriodEnd: sub.cancel_at_period_end,
         items: sub.items.data.map((si) => {
           const price = si.price;
-          const product = price.product;
+          const pid = price.product;
           const productName =
-            typeof product === "object" && product !== null && "name" in product
-              ? (product as { name: string }).name
+            typeof pid === "object" && pid !== null && "name" in pid
+              ? (pid as { name: string }).name
               : null;
           return {
             id: si.id,
             priceId: price.id,
             productName,
-            quantity: si.quantity,
+            quantity: si.quantity ?? null,
             amount: price.unit_amount ?? 0,
             currency: price.currency,
             interval: price.recurring?.interval ?? null,
@@ -206,14 +171,28 @@ async function _fetchStripeCustomerDetailFromApi(
         status: inv.status,
         dueDate: inv.due_date ? formatTimestamp(inv.due_date) : null,
         created: formatTimestamp(inv.created),
-        hostedInvoiceUrl: inv.hosted_invoice_url,
+        hostedInvoiceUrl: inv.hosted_invoice_url ?? null,
       })),
-      recentActivity: customerEvents.slice(0, 15).map((evt) => ({
-        id: evt.id,
-        type: evt.type,
-        created: formatTimestamp(evt.created),
-        summary: summarizeEvent(evt.type, evt.data as unknown as Record<string, unknown>),
-      })),
+      recentActivity: [
+        ...invoices.data.map((inv) => ({
+          id: `evt_${inv.id}`,
+          type: inv.status === "paid" ? "invoice.paid" : inv.status === "open" ? "invoice.created" : `invoice.${inv.status ?? "unknown"}`,
+          created: formatTimestamp(inv.created),
+          summary: inv.status === "paid"
+            ? `Invoice ${inv.number ?? ""} was paid (${formatCents(inv.amount_paid, inv.currency)})`
+            : `Invoice ${inv.number ?? ""} was created`,
+        })),
+        ...paymentIntents.data.map((pi) => ({
+          id: `evt_${pi.id}`,
+          type: pi.status === "succeeded" ? "payment_intent.succeeded" : `payment_intent.${pi.status}`,
+          created: formatTimestamp(pi.created),
+          summary: pi.status === "succeeded"
+            ? `Payment of ${formatCents(pi.amount, pi.currency)} succeeded`
+            : `Payment of ${formatCents(pi.amount, pi.currency)} ${pi.status}`,
+        })),
+      ]
+        .sort((a, b) => b.created.localeCompare(a.created))
+        .slice(0, 15),
     };
   } catch (err) {
     console.error("[getStripeCustomerDetail] error:", err);

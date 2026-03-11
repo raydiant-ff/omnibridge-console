@@ -6,6 +6,8 @@ import {
   computeContractEndDate,
   convertPriceToFrequency,
   BILLING_FREQUENCY_LABELS,
+  isOneTimePrice,
+  computePaymentTerms,
 } from "@/lib/billing-utils";
 import type { ContractTerm, BillingFrequency } from "@/lib/billing-utils";
 import type { QuoteLineItem } from "./quotes";
@@ -89,12 +91,7 @@ export async function createSfQuoteMirror(
   const contractEnd = computeContractEndDate(contractStart, input.contractTerm);
   const endDate = contractEnd.toISOString().split("T")[0];
 
-  const paymentTerms =
-    input.collectionMethod === "send_invoice"
-      ? input.daysUntilDue === 0
-        ? "Due on receipt"
-        : `Net ${input.daysUntilDue ?? 30}`
-      : "Due on receipt";
+  const paymentTerms = computePaymentTerms(input.collectionMethod, input.daysUntilDue);
 
   const quoteFields: Record<string, unknown> = {
     Opportunity__c: input.opportunityId,
@@ -123,8 +120,7 @@ export async function createSfQuoteMirror(
   if (dryRun) {
     const lineLog = input.lineItems.map((li, idx) => {
       const sfProd = productMap.get(li.productId);
-      const oneTime =
-        !li.interval || li.interval === "one-time" || li.interval === "one_time";
+      const oneTime = isOneTimePrice(li.interval);
       const effectiveUnit = li.overrideUnitAmount ?? li.unitAmount;
       const listConverted = oneTime
         ? li.unitAmount
@@ -151,9 +147,9 @@ export async function createSfQuoteMirror(
     log.push(`[SF] Created Stripe_Quote__c: ${sfQuoteId}`);
 
     try {
-      const { soql } = await import("@omnibridge/salesforce");
+      const { soql, escapeSoql } = await import("@omnibridge/salesforce");
       const [sfQuote] = await soql<{ Name: string }>(
-        `SELECT Name FROM Stripe_Quote__c WHERE Id = '${sfQuoteId}' LIMIT 1`,
+        `SELECT Name FROM Stripe_Quote__c WHERE Id = '${escapeSoql(sfQuoteId)}' LIMIT 1`,
       );
       if (sfQuote) {
         sfQuoteNumber = sfQuote.Name;
@@ -179,8 +175,7 @@ export async function createSfQuoteMirror(
       continue;
     }
 
-    const oneTime =
-      !li.interval || li.interval === "one-time" || li.interval === "one_time";
+    const oneTime = isOneTimePrice(li.interval);
     const effectiveUnit = li.overrideUnitAmount ?? li.unitAmount;
     const listConverted = oneTime
       ? li.unitAmount
@@ -393,7 +388,7 @@ export async function createSfSubscriptionsFromQuote(
       continue;
     }
 
-    const oneTime = !li.interval || li.interval === "one-time" || li.interval === "one_time";
+    const oneTime = isOneTimePrice(li.interval);
     const effectiveUnit = li.overrideUnitAmount ?? li.unitAmount;
     const listConverted = oneTime
       ? li.unitAmount

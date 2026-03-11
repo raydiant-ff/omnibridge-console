@@ -5,7 +5,7 @@ import { getCustomerById, getCustomerWorkItems, getCustomerAuditLogs } from "@/l
 import { getStripeDataForCustomer } from "@/lib/queries/stripe";
 import { getSalesforceDataForCustomer } from "@/lib/queries/salesforce";
 import { flags } from "@/lib/feature-flags";
-import { CustomerTabs } from "./customer-tabs";
+import { CustomerTabs } from "@/components/customer/customer-tabs";
 
 interface Props {
   params: Promise<{ id: string }>;

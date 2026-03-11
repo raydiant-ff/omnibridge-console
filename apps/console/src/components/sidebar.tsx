@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
 import { useState } from "react";
 import {
@@ -13,8 +13,6 @@ import {
   ChevronDown,
   ChevronRight,
   Plus,
-  TrendingUp,
-  ArrowLeftRight,
   TrendingDown,
   XCircle,
   RotateCw,
@@ -22,8 +20,18 @@ import {
   List,
   Package,
   LayoutDashboard,
+  HeartHandshake,
+  FilePlus,
+  ArrowUpRight,
+  PenLine,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+interface NavGrandchild {
+  label: string;
+  href: string;
+  icon: React.ReactNode;
+}
 
 interface NavChild {
   label: string;
@@ -31,6 +39,7 @@ interface NavChild {
   icon: React.ReactNode;
   adminOnly?: boolean;
   exact?: boolean;
+  children?: NavGrandchild[];
 }
 
 interface NavItem {
@@ -45,11 +54,6 @@ const NAV_ITEMS: NavItem[] = [
     label: "Customers",
     href: "/customers",
     icon: <Users className="size-4" />,
-  },
-  {
-    label: "Products",
-    href: "/products",
-    icon: <Package className="size-4" />,
   },
   {
     label: "Opportunities",
@@ -69,25 +73,47 @@ const NAV_ITEMS: NavItem[] = [
     children: [
       { label: "My Quotes", href: "/quotes", icon: <List className="size-3.5" />, exact: true },
       { label: "All Quotes", href: "/quotes/all", icon: <Users className="size-3.5" />, adminOnly: true },
-      { label: "Create", href: "/quotes/create", icon: <Plus className="size-3.5" /> },
+      {
+        label: "Create",
+        href: "/quotes/create",
+        icon: <Plus className="size-3.5" />,
+        children: [
+          { label: "New", href: "/quotes/create", icon: <FilePlus className="size-3" /> },
+          { label: "Expansion", href: "/quotes/create/expansion", icon: <ArrowUpRight className="size-3" /> },
+          { label: "Renewal", href: "/quotes/create/renewal", icon: <RotateCw className="size-3" /> },
+          { label: "Amendment", href: "/quotes/create/amendment", icon: <PenLine className="size-3" /> },
+        ],
+      },
     ],
   },
   {
-    label: "Coupons",
-    href: "/coupons",
-    icon: <Ticket className="size-4" />,
+    label: "Products",
+    href: "/products",
+    icon: <Package className="size-4" />,
+    children: [
+      { label: "Products", href: "/products", icon: <Package className="size-3.5" />, exact: true },
+      { label: "Coupons", href: "/coupons", icon: <Ticket className="size-3.5" /> },
+    ],
   },
   {
     label: "Subscriptions",
     href: "/subscriptions",
     icon: <RefreshCw className="size-4" />,
     children: [
+      { label: "Dashboard", href: "/subscriptions", icon: <LayoutDashboard className="size-3.5" />, exact: true },
       { label: "Create", href: "/subscriptions/create", icon: <Plus className="size-3.5" /> },
-      { label: "Upsell", href: "/subscriptions/upsell", icon: <TrendingUp className="size-3.5" /> },
-      { label: "Cross-sell", href: "/subscriptions/cross-sell", icon: <ArrowLeftRight className="size-3.5" /> },
-      { label: "Downgrade", href: "/subscriptions/downgrade", icon: <TrendingDown className="size-3.5" /> },
-      { label: "Cancellation", href: "/subscriptions/cancellation", icon: <XCircle className="size-3.5" /> },
-      { label: "Renewal", href: "/subscriptions/renewal", icon: <RotateCw className="size-3.5" /> },
+    ],
+  },
+  {
+    label: "Customer Success",
+    href: "/cs",
+    icon: <HeartHandshake className="size-4" />,
+    children: [
+      { label: "Dashboard", href: "/cs", icon: <LayoutDashboard className="size-3.5" />, exact: true },
+      { label: "Renewals", href: "/cs/renewals", icon: <RotateCw className="size-3.5" /> },
+      { label: "Amendments", href: "/cs/amendments", icon: <PenLine className="size-3.5" /> },
+      { label: "Downgrades", href: "/cs/downgrades", icon: <TrendingDown className="size-3.5" /> },
+      { label: "Cancellations", href: "/cs/cancellations", icon: <XCircle className="size-3.5" /> },
     ],
   },
 ];
@@ -183,22 +209,92 @@ function NavEntry({ item, pathname, isAdmin }: { item: NavItem; pathname: string
 
       {expanded && (
         <ul className="ml-4 mt-1 flex flex-col gap-0.5 border-l pl-3">
-          {visibleChildren!.map((child) => {
-            const childActive = child.exact
-              ? pathname === child.href
-              : pathname === child.href || pathname.startsWith(child.href + "/");
+          {visibleChildren!.map((child) => (
+            <NavChildEntry key={child.href + child.label} child={child} pathname={pathname} />
+          ))}
+        </ul>
+      )}
+    </li>
+  );
+}
+
+function NavChildEntry({ child, pathname }: { child: NavChild; pathname: string }) {
+  const router = useRouter();
+  const childActive = child.exact
+    ? pathname === child.href
+    : pathname === child.href || pathname.startsWith(child.href + "/");
+  const hasGrandchildren = child.children && child.children.length > 0;
+
+  const anyGrandchildActive = hasGrandchildren &&
+    child.children!.some((gc) => pathname === gc.href || pathname.startsWith(gc.href + "/"));
+  const [expanded, setExpanded] = useState(childActive || anyGrandchildActive);
+
+  if (!hasGrandchildren) {
+    return (
+      <li>
+        <Link
+          href={child.href}
+          className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors ${
+            childActive
+              ? "font-medium text-primary"
+              : "text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          {child.icon}
+          {child.label}
+        </Link>
+      </li>
+    );
+  }
+
+  const handleClick = () => {
+    if (!expanded) {
+      setExpanded(true);
+      const firstChild = child.children![0];
+      if (firstChild && pathname !== firstChild.href) {
+        router.push(firstChild.href);
+      }
+    } else {
+      setExpanded(false);
+    }
+  };
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={handleClick}
+        className={`flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors ${
+          childActive || anyGrandchildActive
+            ? "font-medium text-primary"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        {child.icon}
+        <span className="flex-1 text-left">{child.label}</span>
+        {expanded ? (
+          <ChevronDown className="size-3" />
+        ) : (
+          <ChevronRight className="size-3" />
+        )}
+      </button>
+
+      {expanded && (
+        <ul className="ml-3 mt-0.5 flex flex-col gap-0.5 border-l pl-2.5">
+          {child.children!.map((gc) => {
+            const gcActive = pathname === gc.href;
             return (
-              <li key={child.href}>
+              <li key={gc.href + gc.label}>
                 <Link
-                  href={child.href}
-                  className={`flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors ${
-                    childActive
+                  href={gc.href}
+                  className={`flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors ${
+                    gcActive
                       ? "font-medium text-primary"
                       : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
-                  {child.icon}
-                  {child.label}
+                  {gc.icon}
+                  {gc.label}
                 </Link>
               </li>
             );

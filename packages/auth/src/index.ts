@@ -67,7 +67,9 @@ export function getServerSession() {
 export async function requireSession() {
   const session = await getServerSession();
   if (!session?.user) {
-    throw new Error("Unauthorized");
+    // Dynamic import to avoid requiring 'next' as a direct dependency
+    const { redirect } = await import("next/navigation");
+    return redirect("/login");
   }
   return session;
 }

@@ -1,5 +1,16 @@
 import jwt from "jsonwebtoken";
 
+const SF_API_VERSION = "v60.0";
+
+export class SalesforceApiError extends Error {
+  statusCode: number;
+  constructor(message: string, statusCode: number) {
+    super(message);
+    this.name = "SalesforceApiError";
+    this.statusCode = statusCode;
+  }
+}
+
 interface SalesforceTokenResponse {
   access_token: string;
   instance_url: string;
@@ -8,7 +19,9 @@ interface SalesforceTokenResponse {
   scope: string;
 }
 
-let cachedToken: { accessToken: string; instanceUrl: string; expiresAt: number } | null = null;
+type SalesforceToken = { accessToken: string; instanceUrl: string; expiresAt: number };
+
+let tokenPromise: Promise<SalesforceToken> | null = null;
 
 function getPrivateKey(): string {
   const base64 = process.env.SF_PRIVATE_KEY_BASE64;
@@ -16,11 +29,7 @@ function getPrivateKey(): string {
   return Buffer.from(base64, "base64").toString("utf-8");
 }
 
-export async function getAccessToken(): Promise<{ accessToken: string; instanceUrl: string }> {
-  if (cachedToken && Date.now() < cachedToken.expiresAt) {
-    return { accessToken: cachedToken.accessToken, instanceUrl: cachedToken.instanceUrl };
-  }
-
+async function fetchNewToken(): Promise<SalesforceToken> {
   const loginUrl = process.env.SF_LOGIN_URL ?? "https://login.salesforce.com";
   const clientId = process.env.SF_CLIENT_ID;
   const username = process.env.SF_USERNAME;
@@ -49,46 +58,78 @@ export async function getAccessToken(): Promise<{ accessToken: string; instanceU
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Salesforce token error: ${response.status} ${text}`);
+    throw new SalesforceApiError(`Salesforce token error: ${response.status} ${text}`, response.status);
   }
 
   const data = (await response.json()) as SalesforceTokenResponse;
-  cachedToken = {
+  return {
     accessToken: data.access_token,
     instanceUrl: data.instance_url,
     expiresAt: Date.now() + 90 * 60 * 1000,
   };
+}
 
-  return { accessToken: data.access_token, instanceUrl: data.instance_url };
+export async function getAccessToken(): Promise<{ accessToken: string; instanceUrl: string }> {
+  if (tokenPromise) {
+    const cached = await tokenPromise;
+    if (Date.now() < cached.expiresAt) {
+      return { accessToken: cached.accessToken, instanceUrl: cached.instanceUrl };
+    }
+  }
+
+  tokenPromise = fetchNewToken();
+  try {
+    const token = await tokenPromise;
+    return { accessToken: token.accessToken, instanceUrl: token.instanceUrl };
+  } catch (err) {
+    tokenPromise = null;
+    throw err;
+  }
 }
 
 export async function soql<T = Record<string, unknown>>(query: string): Promise<T[]> {
   const { accessToken, instanceUrl } = await getAccessToken();
   const encoded = encodeURIComponent(query);
+  const headers = { Authorization: `Bearer ${accessToken}` };
 
   const usePost = encoded.length > 4000;
   const response = usePost
-    ? await fetch(`${instanceUrl}/services/data/v60.0/query`, {
+    ? await fetch(`${instanceUrl}/services/data/${SF_API_VERSION}/query`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          ...headers,
           "Content-Type": "application/x-www-form-urlencoded",
         },
         body: `q=${encoded}`,
         signal: AbortSignal.timeout(15000),
       })
-    : await fetch(`${instanceUrl}/services/data/v60.0/query?q=${encoded}`, {
-        headers: { Authorization: `Bearer ${accessToken}` },
+    : await fetch(`${instanceUrl}/services/data/${SF_API_VERSION}/query?q=${encoded}`, {
+        headers,
         signal: AbortSignal.timeout(15000),
       });
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`SOQL error: ${response.status} ${text}`);
+    throw new SalesforceApiError(`SOQL error: ${response.status} ${text}`, response.status);
   }
 
-  const result = (await response.json()) as { records: T[] };
-  return result.records;
+  let result = (await response.json()) as { records: T[]; done: boolean; nextRecordsUrl?: string };
+  let records = result.records;
+
+  while (!result.done && result.nextRecordsUrl) {
+    const nextResp = await fetch(`${instanceUrl}${result.nextRecordsUrl}`, {
+      headers,
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!nextResp.ok) {
+      const text = await nextResp.text();
+      throw new SalesforceApiError(`SOQL pagination error: ${nextResp.status} ${text}`, nextResp.status);
+    }
+    result = (await nextResp.json()) as { records: T[]; done: boolean; nextRecordsUrl?: string };
+    records = records.concat(result.records);
+  }
+
+  return records;
 }
 
 export function escapeSoql(value: string): string {
@@ -131,7 +172,7 @@ export async function createOpportunity(
   data: CreateOpportunityInput,
 ): Promise<SObjectCreateResult> {
   const { accessToken, instanceUrl } = await getAccessToken();
-  const url = `${instanceUrl}/services/data/v60.0/sobjects/Opportunity`;
+  const url = `${instanceUrl}/services/data/${SF_API_VERSION}/sobjects/Opportunity`;
 
   const body: Record<string, unknown> = {
     Name: data.Name,
@@ -153,7 +194,7 @@ export async function createOpportunity(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`Salesforce create Opportunity error: ${response.status} ${text}`);
+    throw new SalesforceApiError(`Salesforce create Opportunity error: ${response.status} ${text}`, response.status);
   }
 
   return (await response.json()) as SObjectCreateResult;
@@ -192,6 +233,18 @@ export async function getAllOpportunities(): Promise<SalesforceOpportunity[]> {
       `WHERE IsClosed = false ` +
       `ORDER BY LastModifiedDate DESC ` +
       `LIMIT 200`,
+  );
+}
+
+export async function getOpportunitiesByAccountId(
+  accountId: string,
+): Promise<SalesforceOpportunity[]> {
+  return soql<SalesforceOpportunity>(
+    `SELECT Id, Name, StageName, CloseDate, CreatedDate, Amount, Type, LastModifiedDate, Account.Id, Account.Name, Owner.Name ` +
+      `FROM Opportunity ` +
+      `WHERE AccountId = '${escapeSoql(accountId)}' ` +
+      `ORDER BY LastModifiedDate DESC ` +
+      `LIMIT 100`,
   );
 }
 
@@ -351,7 +404,7 @@ export async function createSObject(
   data: Record<string, unknown>,
 ): Promise<SObjectCreateResult> {
   const { accessToken, instanceUrl } = await getAccessToken();
-  const url = `${instanceUrl}/services/data/v60.0/sobjects/${objectType}`;
+  const url = `${instanceUrl}/services/data/${SF_API_VERSION}/sobjects/${objectType}`;
 
   const response = await fetch(url, {
     method: "POST",
@@ -364,7 +417,7 @@ export async function createSObject(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`SF create ${objectType}: ${response.status} ${text}`);
+    throw new SalesforceApiError(`SF create ${objectType}: ${response.status} ${text}`, response.status);
   }
 
   return (await response.json()) as SObjectCreateResult;
@@ -376,7 +429,7 @@ export async function updateSObject(
   data: Record<string, unknown>,
 ): Promise<void> {
   const { accessToken, instanceUrl } = await getAccessToken();
-  const url = `${instanceUrl}/services/data/v60.0/sobjects/${objectType}/${id}`;
+  const url = `${instanceUrl}/services/data/${SF_API_VERSION}/sobjects/${objectType}/${id}`;
 
   const response = await fetch(url, {
     method: "PATCH",
@@ -389,6 +442,6 @@ export async function updateSObject(
 
   if (!response.ok) {
     const text = await response.text();
-    throw new Error(`SF update ${objectType}/${id}: ${response.status} ${text}`);
+    throw new SalesforceApiError(`SF update ${objectType}/${id}: ${response.status} ${text}`, response.status);
   }
 }

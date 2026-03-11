@@ -86,21 +86,15 @@ function monthLabel(key: string): string {
 
 const RADIAN = Math.PI / 180;
 
-function renderPieLabel({
-  cx,
-  cy,
-  midAngle,
-  outerRadius,
-  name,
-  percent,
-}: {
-  cx: number;
-  cy: number;
-  midAngle: number;
-  outerRadius: number;
-  name: string;
-  percent: number;
-}) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function renderPieLabel(props: any) {
+  const cx = (props.cx as number) ?? 0;
+  const cy = (props.cy as number) ?? 0;
+  const midAngle = (props.midAngle as number) ?? 0;
+  const outerRadius = (props.outerRadius as number) ?? 0;
+  const name = (props.name as string) ?? "";
+  const percent = (props.percent as number) ?? 0;
+
   const radius = outerRadius + 32;
   const x = cx + radius * Math.cos(-midAngle * RADIAN);
   const y = cy + radius * Math.sin(-midAngle * RADIAN);
@@ -123,19 +117,14 @@ function renderPieLabel({
   );
 }
 
-function renderPieLabelLine({
-  cx,
-  cy,
-  midAngle,
-  outerRadius,
-  stroke,
-}: {
-  cx: number;
-  cy: number;
-  midAngle: number;
-  outerRadius: number;
-  stroke: string;
-}) {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function renderPieLabelLine(props: any) {
+  const cx = (props.cx as number) ?? 0;
+  const cy = (props.cy as number) ?? 0;
+  const midAngle = (props.midAngle as number) ?? 0;
+  const outerRadius = (props.outerRadius as number) ?? 0;
+  const stroke = (props.stroke as string) ?? "#999";
+
   const innerPt = {
     x: cx + (outerRadius + 4) * Math.cos(-midAngle * RADIAN),
     y: cy + (outerRadius + 4) * Math.sin(-midAngle * RADIAN),
@@ -251,10 +240,10 @@ function StagesPieChart({ opps, year }: { opps: OpportunityRow[]; year: number }
                 ))}
               </Pie>
               <Tooltip
-                formatter={(value: number, name: string) => [
-                  `${value} (${((value / total) * 100).toFixed(1)}%)`,
-                  name,
-                ]}
+                formatter={(value, name) => {
+                  const v = Number(value) || 0;
+                  return [`${v} (${((v / total) * 100).toFixed(1)}%)`, String(name)];
+                }}
               />
               <Legend
                 formatter={(value: string) => (
@@ -322,8 +311,8 @@ function ClosedWonByOperator({
                 tickLine={false}
               />
               <Tooltip
-                formatter={(value: number) => [formatCurrency(value), "Revenue"]}
-                labelFormatter={(label) => label}
+                formatter={(value) => [formatCurrency(Number(value) || 0), "Revenue"]}
+                labelFormatter={(label) => String(label)}
               />
               <Bar
                 dataKey="total"
@@ -331,7 +320,7 @@ function ClosedWonByOperator({
                 radius={[0, 4, 4, 0]}
                 label={{
                   position: "right",
-                  formatter: (v: number) => formatCompactCurrency(v),
+                  formatter: (v) => formatCompactCurrency(Number(v) || 0),
                   fontSize: 12,
                 }}
               />

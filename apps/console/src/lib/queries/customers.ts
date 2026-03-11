@@ -2,6 +2,7 @@
 
 import { cached } from "@/lib/cache";
 import { prisma } from "@omnibridge/db";
+import { requireSession } from "@omnibridge/auth";
 import { flags } from "@/lib/feature-flags";
 
 export interface UnifiedCustomer {
@@ -206,7 +207,6 @@ function getCachedMyAccounts(email: string) {
 }
 
 export async function getMyAccounts(): Promise<MyAccount[]> {
-  const { requireSession } = await import("@omnibridge/auth");
   const session = await requireSession();
   const email = session.user?.email;
   if (!email) throw new Error("No email found on session.");
@@ -240,7 +240,6 @@ function cachedGetAllAccounts() {
 }
 
 export async function getAllAccountsAdmin(): Promise<MyAccount[]> {
-  const { requireSession } = await import("@omnibridge/auth");
   const session = await requireSession();
   const role = (session.user as { role?: string }).role;
   if (role !== "admin") throw new Error("Forbidden: admin only");
@@ -340,7 +339,6 @@ function getCachedAccountDetail(accountId: string) {
 }
 
 export async function getAccountDetailById(accountId: string): Promise<AccountDetail | null> {
-  const { requireSession } = await import("@omnibridge/auth");
   await requireSession();
 
   if (flags.useMockSalesforce) {
@@ -485,6 +483,37 @@ export async function getCustomerAuditLogs(customerId: string) {
 export interface AccountContactInfo {
   contactName: string | null;
   contactEmail: string | null;
+}
+
+export async function resolveSfAccountForStripeCustomer(
+  stripeCustomerId: string,
+): Promise<{ sfAccountId: string; sfAccountName: string } | null> {
+  if (!stripeCustomerId) return null;
+
+  const local = await prisma.customerIndex.findFirst({
+    where: { stripeCustomerId },
+    select: { sfAccountId: true, sfAccountName: true },
+  });
+  if (local?.sfAccountId) {
+    return { sfAccountId: local.sfAccountId, sfAccountName: local.sfAccountName ?? "" };
+  }
+
+  if (flags.useMockSalesforce) return null;
+
+  try {
+    const { soql } = await import("@omnibridge/salesforce");
+    const safeId = stripeCustomerId.replace(/'/g, "\\'");
+    const accounts = await soql<{ Id: string; Name: string }>(
+      `SELECT Id, Name FROM Account WHERE Stripe_Customer_ID__c = '${safeId}' LIMIT 1`,
+    );
+    if (accounts.length > 0) {
+      return { sfAccountId: accounts[0].Id, sfAccountName: accounts[0].Name };
+    }
+  } catch (err) {
+    console.error("[resolveSfAccountForStripeCustomer] error:", err);
+  }
+
+  return null;
 }
 
 export async function getAccountContactInfo(

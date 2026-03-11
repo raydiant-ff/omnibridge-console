@@ -39,34 +39,35 @@ export async function getAccountContacts(sfAccountId: string): Promise<AccountCo
   }
 
   try {
-    const { soql } = await import("@omnibridge/salesforce");
+    const { soql, escapeSoql } = await import("@omnibridge/salesforce");
+    const safeId = escapeSoql(sfAccountId);
     
-    const contacts = await soql<{
-      Id: string;
-      FirstName: string;
-      LastName: string;
-      Email: string;
-      Title?: string;
-      Phone?: string;
-    }>(`
-      SELECT Id, FirstName, LastName, Email, Title, Phone
-      FROM Contact 
-      WHERE AccountId = '${sfAccountId}' 
-        AND Email != null 
-        AND IsDeleted = false
-      ORDER BY LastName, FirstName
-      LIMIT 50
-    `);
-
-    // Get current Bill-To Contact
-    const accounts = await soql<{
-      blng__BillToContact__c?: string;
-    }>(`
-      SELECT blng__BillToContact__c 
-      FROM Account 
-      WHERE Id = '${sfAccountId}' 
-      LIMIT 1
-    `);
+    const [contacts, accounts] = await Promise.all([
+      soql<{
+        Id: string;
+        FirstName: string;
+        LastName: string;
+        Email: string;
+        Title?: string;
+        Phone?: string;
+      }>(`
+        SELECT Id, FirstName, LastName, Email, Title, Phone
+        FROM Contact
+        WHERE AccountId = '${safeId}'
+          AND Email != null
+          AND IsDeleted = false
+        ORDER BY LastName, FirstName
+        LIMIT 50
+      `),
+      soql<{
+        blng__BillToContact__c?: string;
+      }>(`
+        SELECT blng__BillToContact__c
+        FROM Account
+        WHERE Id = '${safeId}'
+        LIMIT 1
+      `),
+    ]);
     
     const currentBillToId = accounts[0]?.blng__BillToContact__c;
 

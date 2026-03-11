@@ -5,13 +5,17 @@ import { prisma } from "@omnibridge/db";
 import { requireSession } from "@omnibridge/auth";
 import { flags } from "@/lib/feature-flags";
 import { createSfQuoteMirror } from "./sf-quote-mirror";
+import { createSfQuoteEvent } from "./sf-quote-event";
 import {
   billingIntervalToStripe,
   convertPriceToFrequency,
   computeContractEndDate,
   intervalMatchesFrequency,
+  isOneTimePrice,
+  computePaymentTerms,
 } from "@/lib/billing-utils";
 import type { ContractTerm, BillingFrequency } from "@/lib/billing-utils";
+import { generateAcceptToken } from "@/lib/utils/quote-tokens";
 
 export interface QuoteLineItem {
   priceId: string;
@@ -31,6 +35,7 @@ export interface CreateQuoteInput {
   customerName: string;
   sfAccountId?: string;
   opportunityId?: string;
+  billToContactId?: string;
   lineItems: QuoteLineItem[];
   contractTerm: ContractTerm;
   billingFrequency: BillingFrequency;
@@ -55,10 +60,6 @@ export interface CreateQuoteResult {
   dryRun?: boolean;
   dryRunLog?: string[];
   productValidation?: { valid: boolean; missingProducts: string[] };
-}
-
-function generateAcceptToken(): string {
-  return `qt_${Date.now().toString(36)}_${randomUUID().replace(/-/g, "").slice(0, 16)}`;
 }
 
 export async function createQuoteDraft(
@@ -105,8 +106,7 @@ export async function createQuoteDraft(
 
   for (const li of input.lineItems) {
     const effectiveUnit = li.overrideUnitAmount ?? li.unitAmount;
-    const oneTime =
-      !li.interval || li.interval === "one-time" || li.interval === "one_time";
+    const oneTime = isOneTimePrice(li.interval);
 
     const effectiveConverted = oneTime
       ? effectiveUnit
@@ -140,10 +140,7 @@ export async function createQuoteDraft(
         return {
           success: false,
           error: `Customer email validation failed: ${emailResult.error}`,
-          quoteRecordId: null,
-          stripeQuoteId: null,
-          dryRun: false,
-          log: actionLog,
+          dryRunLog: actionLog,
         };
       }
       
@@ -154,10 +151,7 @@ export async function createQuoteDraft(
       return {
         success: false,
         error: `Email validation error: ${message}`,
-        quoteRecordId: null,
-        stripeQuoteId: null,
-        dryRun: false,
-        log: actionLog,
+        dryRunLog: actionLog,
       };
     }
   }
@@ -165,8 +159,7 @@ export async function createQuoteDraft(
   const { interval: billingInterval, interval_count: billingIntervalCount } =
     billingIntervalToStripe(input.billingFrequency);
 
-  const isOneTime = (li: QuoteLineItem) =>
-    !li.interval || li.interval === "one-time" || li.interval === "one_time";
+  const isOneTime = (li: QuoteLineItem) => isOneTimePrice(li.interval);
 
   if (dryRun) {
     stripeQuoteId = `qt_dryrun_${randomUUID().slice(0, 8)}`;
@@ -227,22 +220,29 @@ export async function createQuoteDraft(
       const { getStripeClient } = await import("@omnibridge/stripe");
       const stripe = getStripeClient();
 
+      const { createInlineCoupon } = await import("./coupons");
       const couponMap = new Map<number, string>();
       for (let i = 0; i < input.lineItems.length; i++) {
         const li = input.lineItems[i];
         if (li.overrideUnitAmount != null && li.overrideUnitAmount < li.unitAmount) {
           const discountPerUnit = li.unitAmount - li.overrideUnitAmount;
-          const coupon = await stripe.coupons.create({
-            name: `Quote discount — ${li.productName}`,
-            duration: "once",
-            amount_off: discountPerUnit * li.quantity,
-            currency: li.currency,
-            metadata: { source: "displai_omni", inline: "true" },
-          } as any);
-          couponMap.set(i, coupon.id);
-          actionLog.push(
-            `[Coupon] Created ${coupon.id} for ${li.productName}: -$${((discountPerUnit * li.quantity) / 100).toFixed(2)}`,
+          const totalDiscountDollars = (discountPerUnit * li.quantity) / 100;
+          const result = await createInlineCoupon(
+            `Quote discount — ${li.productName}`,
+            "fixed",
+            totalDiscountDollars,
+            li.currency,
           );
+          if (result.success && result.couponId) {
+            couponMap.set(i, result.couponId);
+            actionLog.push(
+              `[Coupon] Created ${result.couponId} for ${li.productName}: -$${totalDiscountDollars.toFixed(2)}`,
+            );
+          } else {
+            actionLog.push(
+              `[Coupon] WARN: Failed to create coupon for ${li.productName}: ${result.error}`,
+            );
+          }
         }
       }
 
@@ -308,11 +308,22 @@ export async function createQuoteDraft(
 
       const hasLineDiscounts = couponMap.size > 0;
 
+      const termLabel = input.contractTerm?.replace(/yr$/, "-Year") ?? "";
+      const freqLabel =
+        input.billingFrequency === "annual"
+          ? "Annual"
+          : input.billingFrequency === "quarterly"
+            ? "Quarterly"
+            : "Monthly";
+
       const createParams: Record<string, unknown> = {
         customer: input.stripeCustomerId,
         line_items: lineItems,
         collection_method: input.collectionMethod,
         expires_at: expiresAtUnix,
+        header: "Displai Systems, Inc. — Order Form",
+        description: `${termLabel} Contract · ${freqLabel} Billing`,
+        footer: "Signature: /sn1/    Date: /ds1/    Name: /fn1/",
         metadata: {
           source: "displai_omni",
           contract_term: input.contractTerm,
@@ -412,12 +423,7 @@ export async function createQuoteDraft(
       sfQuoteNumber,
       sfQuoteLineIds: sfQuoteLineIds.length > 0 ? sfQuoteLineIds : undefined,
       collectionMethod: input.collectionMethod,
-      paymentTerms:
-        input.collectionMethod === "send_invoice"
-          ? input.daysUntilDue === 0
-            ? "Due on receipt"
-            : `Net ${input.daysUntilDue ?? 30}`
-          : "Prepay",
+      paymentTerms: computePaymentTerms(input.collectionMethod, input.daysUntilDue),
       daysUntilDue:
         input.collectionMethod === "send_invoice"
           ? input.daysUntilDue ?? 30
@@ -430,7 +436,9 @@ export async function createQuoteDraft(
       totalAmount,
       currency,
       expiresAt,
-      lineItemsJson: JSON.stringify(input.lineItems),
+      lineItemsJson: input.lineItems as unknown as import("@omnibridge/db").Prisma.InputJsonValue,
+      billToContactId: input.billToContactId ?? null,
+      effectiveDate: input.effectiveDate ? new Date(input.effectiveDate) : null,
       dryRun,
       createdBy: userId,
     },
@@ -443,24 +451,35 @@ export async function createQuoteDraft(
       targetType: "stripe_quote",
       targetId: stripeQuoteId,
       requestId,
-      payloadJson: JSON.parse(
-        JSON.stringify({
-          quoteRecordId: quoteRecord.id,
-          stripeQuoteId,
-          sfQuoteId,
-          collectionMethod: input.collectionMethod,
-          lineItemCount: input.lineItems.length,
-          totalAmount,
-          currency,
-          expiresAt: expiresAt.toISOString(),
-          dryRun,
-          dryRunLog: dryRun ? actionLog : undefined,
-        }),
-      ),
+      payloadJson: {
+        quoteRecordId: quoteRecord.id,
+        stripeQuoteId,
+        sfQuoteId,
+        collectionMethod: input.collectionMethod,
+        lineItemCount: input.lineItems.length,
+        totalAmount,
+        currency,
+        expiresAt: expiresAt.toISOString(),
+        dryRun,
+        dryRunLog: dryRun ? actionLog : undefined,
+      },
     },
   });
 
   const acceptUrl = `/accept/${acceptToken}`;
+
+  // Fire-and-forget SF timeline event — non-blocking, doesn't affect quote creation
+  if (sfQuoteId && !dryRun) {
+    createSfQuoteEvent({
+      sfQuoteId,
+      action: "quote.created",
+      occurredAt: quoteRecord.createdAt,
+      actor: session.user.name ?? session.user.email ?? userId,
+      source: "omnibridge",
+      details: { stripeQuoteId, totalAmount, currency, collectionMethod: input.collectionMethod },
+      omniAuditLogId: auditLog.id,
+    }).catch((err) => console.error("[SF Event] quote.created failed:", err));
+  }
 
   return {
     success: true,
@@ -543,6 +562,14 @@ export async function finalizeStripeQuote(
       } catch (err) {
         console.warn("[Finalize] Failed to update SF quote status to Sent:", err);
       }
+      createSfQuoteEvent({
+        sfQuoteId: record.sfQuoteId,
+        action: "quote.finalized",
+        occurredAt: new Date(),
+        actor: session.user.name ?? session.user.email ?? session.user.id,
+        source: "omnibridge",
+        details: { stripeQuoteNumber },
+      }).catch((err) => console.error("[SF Event] quote.finalized failed:", err));
     }
 
     return { success: true };
@@ -599,6 +626,16 @@ export async function cancelQuote(
     },
   });
 
+  if (record.sfQuoteId) {
+    createSfQuoteEvent({
+      sfQuoteId: record.sfQuoteId,
+      action: "quote.canceled",
+      occurredAt: new Date(),
+      actor: session.user.name ?? session.user.email ?? session.user.id,
+      source: "omnibridge",
+    }).catch((err) => console.error("[SF Event] quote.canceled failed:", err));
+  }
+
   return { success: true };
 }
 
@@ -614,10 +651,17 @@ export async function acceptQuote(
     where: { acceptToken },
   });
   if (!record) return { success: false, error: "Quote not found." };
+
+  // Delegate co-term quotes to their own acceptance flow
+  if (record.quoteType === "co_term") {
+    const { acceptCoTermQuote } = await import("./co-term-quote");
+    return acceptCoTermQuote(record.id);
+  }
+
   if (record.status === "accepted") {
     return { success: false, error: "Quote has already been accepted." };
   }
-  if (record.status !== "open" && record.status !== "dry_run") {
+  if (record.status !== "open" && record.status !== "signed" && record.status !== "dry_run") {
     return { success: false, error: `Cannot accept a quote in "${record.status}" status.` };
   }
   if (record.expiresAt && record.expiresAt < new Date()) {
@@ -630,12 +674,12 @@ export async function acceptQuote(
   if (record.collectionMethod === "charge_automatically") {
     if (isDryRun) {
       actionLog.push(
-        `[DRY RUN] Would create Stripe Checkout Session for quote ${record.stripeQuoteId}`,
+        `[DRY RUN] Would create embedded Stripe Checkout for quote ${record.stripeQuoteId}`,
       );
       actionLog.push(`[DRY RUN] Customer: ${record.stripeCustomerId}`);
-      actionLog.push(`[DRY RUN] Mode: subscription (prepay path)`);
+      actionLog.push(`[DRY RUN] Mode: subscription (prepay path via embedded checkout)`);
       actionLog.push(
-        `[DRY RUN] Would redirect to Stripe Checkout for payment method collection`,
+        `[DRY RUN] Customer would complete payment inline on the accept page`,
       );
 
       if (record.sfQuoteId) {
@@ -660,57 +704,55 @@ export async function acceptQuote(
     }
 
     if (flags.useMockStripe) {
-      actionLog.push(`[MOCK] Would create Checkout Session`);
+      actionLog.push(`[MOCK] Would create embedded Checkout Session`);
       await prisma.quoteRecord.update({
         where: { id: record.id },
         data: { status: "accepted", acceptedAt: new Date() },
       });
-      return { success: true, redirectUrl: "/accept/mock-success" };
+      return { success: true };
     }
 
-    try {
-      const { getStripeClient } = await import("@omnibridge/stripe");
-      const stripe = getStripeClient();
+    // For live Pay Now quotes, payment is handled via embedded checkout
+    // (POST /api/checkout/embedded + onComplete callback).
+    // If acceptQuote is called directly (e.g. after checkout completes),
+    // just mark as accepted and sync SF.
+    await prisma.quoteRecord.update({
+      where: { id: record.id },
+      data: { status: "accepted", acceptedAt: new Date() },
+    });
 
-      const stripeQuote = await stripe.quotes.retrieve(record.stripeQuoteId, {
-        expand: ["line_items"],
-      } as any);
-      const quoteLineItems = (stripeQuote as any).line_items?.data ?? [];
-
-      const checkoutLineItems = quoteLineItems.map((qli: any) => ({
-        price: qli.price?.id,
-        quantity: qli.quantity,
-      }));
-
-      const hasRecurring = quoteLineItems.some(
-        (qli: any) => qli.price?.recurring,
-      );
-
-      const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? "http://localhost:3000";
-      const checkoutSession = await stripe.checkout.sessions.create({
-        customer: record.stripeCustomerId,
-        line_items: checkoutLineItems,
-        mode: hasRecurring ? "subscription" : "payment",
-        payment_method_collection: "always",
-        success_url: `${baseUrl}/accept/${acceptToken}/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${baseUrl}/accept/${acceptToken}?canceled=true`,
-        metadata: {
-          source: "displai_omni",
-          quote_record_id: record.id,
-          stripe_quote_id: record.stripeQuoteId,
+    await prisma.auditLog.create({
+      data: {
+        action: "quote.accepted_checkout",
+        targetType: "stripe_quote",
+        targetId: record.stripeQuoteId,
+        payloadJson: {
+          quoteRecordId: record.id,
+          collectionMethod: "charge_automatically",
+          totalAmount: record.totalAmount,
         },
-      });
+      },
+    });
 
-      await prisma.quoteRecord.update({
-        where: { id: record.id },
-        data: { status: "pending_payment" },
-      });
-
-      return { success: true, redirectUrl: checkoutSession.url ?? undefined };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Stripe error";
-      return { success: false, error: message };
+    if (record.sfQuoteId) {
+      try {
+        const { updateSfQuoteStatus, closeOpportunityWon } = await import(
+          "./sf-quote-mirror"
+        );
+        await updateSfQuoteStatus(record.sfQuoteId, "Accepted", false);
+        if (record.opportunityId) {
+          await closeOpportunityWon(
+            record.opportunityId,
+            record.totalAmount ?? 0,
+            false,
+          );
+        }
+      } catch (err) {
+        console.error("[acceptQuote] SF sync error:", err);
+      }
     }
+
+    return { success: true };
   }
 
   if (record.collectionMethod === "send_invoice") {
@@ -773,6 +815,29 @@ export async function acceptQuote(
             false,
           );
         }
+      }
+
+      await prisma.auditLog.create({
+        data: {
+          action: "quote.accepted_direct",
+          targetType: "stripe_quote",
+          targetId: record.stripeQuoteId,
+          payloadJson: {
+            quoteRecordId: record.id,
+            collectionMethod: "send_invoice",
+            totalAmount: record.totalAmount,
+          },
+        },
+      });
+
+      if (record.sfQuoteId) {
+        createSfQuoteEvent({
+          sfQuoteId: record.sfQuoteId,
+          action: "quote.accepted",
+          occurredAt: new Date(),
+          source: "omnibridge",
+          details: { collectionMethod: "send_invoice", totalAmount: record.totalAmount },
+        }).catch((err) => console.error("[SF Event] quote.accepted_direct failed:", err));
       }
 
       return { success: true };

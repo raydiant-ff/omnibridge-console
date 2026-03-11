@@ -16,11 +16,15 @@
     "bcryptjs": "^3.0.3",
     "next-auth": "^4"
   },
+  "peerDependencies": {
+    "next": ">=14"
+  },
   "devDependencies": {
     "@omnibridge/eslint-config": "workspace:*",
     "@omnibridge/typescript-config": "workspace:*",
     "@types/bcryptjs": "^3.0.0",
     "eslint": "^8",
+    "next": "^15",
     "typescript": "^5"
   }
 }

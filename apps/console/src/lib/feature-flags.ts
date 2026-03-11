@@ -1,19 +1,11 @@
-export const flags = {
-  get useMockStripe() {
-    if (process.env.USE_MOCK_STRIPE === "true") return true;
-    if (process.env.USE_MOCK_STRIPE === "false") return false;
-    return !process.env.STRIPE_SECRET_KEY || process.env.STRIPE_SECRET_KEY.startsWith("sk_live_or_test");
-  },
+function resolveMockFlag(envOverride: string | undefined, envKey: string | undefined): boolean {
+  if (envOverride === "true") return true;
+  if (envOverride === "false") return false;
+  return !envKey;
+}
 
-  get useMockSalesforce() {
-    if (process.env.USE_MOCK_SALESFORCE === "true") return true;
-    if (process.env.USE_MOCK_SALESFORCE === "false") return false;
-    return !process.env.SF_CLIENT_ID || process.env.SF_CLIENT_ID === "connected_app_consumer_key";
-  },
-
-  get useMockPandaDoc() {
-    if (process.env.USE_MOCK_PANDADOC === "true") return true;
-    if (process.env.USE_MOCK_PANDADOC === "false") return false;
-    return !process.env.PANDADOC_API_KEY;
-  },
-} as const;
+export const flags = Object.freeze({
+  useMockStripe: resolveMockFlag(process.env.USE_MOCK_STRIPE, process.env.STRIPE_SECRET_KEY),
+  useMockSalesforce: resolveMockFlag(process.env.USE_MOCK_SALESFORCE, process.env.SF_CLIENT_ID),
+  useMockDocuSign: resolveMockFlag(process.env.USE_MOCK_DOCUSIGN, process.env.DOCUSIGN_INTEGRATION_KEY),
+});

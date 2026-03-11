@@ -17,16 +17,14 @@ export default async function AcceptQuotePage({ params, searchParams }: Props) {
 
   if (!record) notFound();
 
-  const lineItems = record.lineItemsJson
-    ? (JSON.parse(record.lineItemsJson) as {
-        productName: string;
-        nickname: string;
-        quantity: number;
-        unitAmount: number;
-        currency: string;
-        interval: string;
-      }[])
-    : [];
+  const lineItems = (record.lineItemsJson as {
+    productName: string;
+    nickname: string;
+    quantity: number;
+    unitAmount: number;
+    currency: string;
+    interval: string;
+  }[] | null) ?? [];
 
   return (
     <AcceptQuoteClient
@@ -40,7 +38,7 @@ export default async function AcceptQuotePage({ params, searchParams }: Props) {
       expiresAt={record.expiresAt?.toISOString() ?? null}
       lineItems={lineItems}
       isDryRun={record.dryRun}
-      hasPandaDoc={!!record.pandadocDocId}
+      hasDocuSign={!!record.docusignEnvelopeId}
       signerName={record.signerName}
       wasCanceled={canceled === "true"}
     />

@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { Loader2, FlaskConical, Rocket, ChevronDown, ChevronRight, ArrowDown, ArrowUp, AlertTriangle } from "lucide-react";
+import { Loader2, FlaskConical, Rocket, ArrowDown, ArrowUp, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { DryRunLogPanel } from "@/components/ui/dry-run-log-panel";
 import { formatCurrency } from "@/lib/format";
 import {
   createQuoteDraft,
@@ -35,7 +36,7 @@ export function ReviewQuote({ state, onBack, onResult, onToggleDryRun }: Props) 
   const [isExecuting, setIsExecuting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [dryRunLog, setDryRunLog] = useState<string[] | null>(null);
-  const [logExpanded, setLogExpanded] = useState(true);
+
   const [productWarnings, setProductWarnings] = useState<string[]>([]);
 
   const freqLabel = billingFrequencyIntervalLabel(state.billingFrequency);
@@ -76,6 +77,7 @@ export function ReviewQuote({ state, onBack, onResult, onToggleDryRun }: Props) 
         customerName: state.customer.sfAccountName ?? "Unknown",
         sfAccountId: state.customer.sfAccountId ?? undefined,
         opportunityId: state.opportunityId || undefined,
+        billToContactId: state.billToContactId || undefined,
         lineItems: state.lineItems,
         contractTerm: state.contractTerm,
         billingFrequency: state.billingFrequency,
@@ -247,12 +249,20 @@ export function ReviewQuote({ state, onBack, onResult, onToggleDryRun }: Props) 
             </div>
           )}
           {totalDelta < 0 && (
-            <div className="flex items-center justify-between text-sm">
-              <span className="font-medium text-green-700">Discount</span>
-              <span className="font-medium tabular-nums text-green-700">
-                {formatCurrency(totalDelta, state.lineItems[0]?.currency ?? "usd")}
-              </span>
-            </div>
+            <>
+              <div className="flex items-center justify-between text-sm">
+                <span className="font-medium text-green-700">Total Discount</span>
+                <span className="font-medium tabular-nums text-green-700">
+                  {formatCurrency(totalDelta, state.lineItems[0]?.currency ?? "usd")}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-green-600">Savings</span>
+                <span className="text-green-600">
+                  {Math.round((Math.abs(totalDelta) / standardTotal) * 100)}% off
+                </span>
+              </div>
+            </>
           )}
           {totalDelta > 0 && (
             <div className="flex items-center justify-between text-sm">
@@ -372,29 +382,7 @@ export function ReviewQuote({ state, onBack, onResult, onToggleDryRun }: Props) 
         </div>
 
         {dryRunLog && dryRunLog.length > 0 && (
-          <div className="rounded-lg border border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20">
-            <button
-              type="button"
-              onClick={() => setLogExpanded((v) => !v)}
-              className="flex w-full items-center justify-between px-4 py-3 text-left"
-            >
-              <span className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                Dry Run Results ({dryRunLog.length} entries)
-              </span>
-              {logExpanded ? (
-                <ChevronDown className="size-4 text-amber-600" />
-              ) : (
-                <ChevronRight className="size-4 text-amber-600" />
-              )}
-            </button>
-            {logExpanded && (
-              <div className="max-h-80 overflow-y-auto border-t border-amber-500/20 px-4 py-3">
-                <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-amber-900 dark:text-amber-200">
-                  {dryRunLog.join("\n")}
-                </pre>
-              </div>
-            )}
-          </div>
+          <DryRunLogPanel logs={dryRunLog} />
         )}
 
         {productWarnings.length > 0 && (

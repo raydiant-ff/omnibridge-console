@@ -17,7 +17,7 @@ export interface QuoteRow {
   createdByName: string | null;
   createdAt: string;
   sfQuoteId: string | null;
-  pandadocDocId: string | null;
+  docusignEnvelopeId: string | null;
   stripeSubscriptionId: string | null;
 }
 
@@ -35,14 +35,14 @@ export interface QuoteDetail extends QuoteRow {
   billingFrequency: string | null;
   contractEndDate: string | null;
   acceptedAt: string | null;
-  lineItemsJson: string | null;
+  lineItemsJson: unknown;
 }
 
 export interface AuditTimelineEntry {
   id: string;
   action: string;
-  targetType: string;
-  targetId: string;
+  targetType: string | null;
+  targetId: string | null;
   actorName: string | null;
   payloadJson: unknown;
   createdAt: string;
@@ -155,7 +155,7 @@ function mapRow(row: {
   expiresAt: Date | null;
   createdAt: Date;
   sfQuoteId: string | null;
-  pandadocDocId: string | null;
+  docusignEnvelopeId: string | null;
   stripeSubscriptionId: string | null;
   creator: { name: string | null; email: string };
 }): QuoteRow {
@@ -173,7 +173,7 @@ function mapRow(row: {
     createdByName: row.creator.name ?? row.creator.email,
     createdAt: row.createdAt.toISOString(),
     sfQuoteId: row.sfQuoteId,
-    pandadocDocId: row.pandadocDocId,
+    docusignEnvelopeId: row.docusignEnvelopeId,
     stripeSubscriptionId: row.stripeSubscriptionId,
   };
 }

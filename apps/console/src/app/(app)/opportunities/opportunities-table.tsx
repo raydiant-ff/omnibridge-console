@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatDollars } from "@/lib/format";
 
 function stageBadgeVariant(
   stage: string,
@@ -34,16 +35,6 @@ function stageBadgeVariant(
     default:
       return "outline";
   }
-}
-
-function formatCurrency(amount: number | null): string {
-  if (amount === null || amount === undefined) return "-";
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount);
 }
 
 function formatDate(dateStr: string): string {
@@ -202,7 +193,7 @@ export function OpportunitiesTable({
                     </Badge>
                   </TableCell>
                   <TableCell className="text-right font-mono">
-                    {formatCurrency(opp.amount)}
+                    {formatDollars(opp.amount)}
                   </TableCell>
                   <TableCell>{formatDate(opp.createdDate)}</TableCell>
                   <TableCell>{formatDate(opp.closeDate)}</TableCell>

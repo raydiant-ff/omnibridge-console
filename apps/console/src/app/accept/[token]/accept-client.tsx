@@ -1,6 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import type { Stripe } from "@stripe/stripe-js";
+import {
+  EmbeddedCheckoutProvider,
+  EmbeddedCheckout,
+} from "@stripe/react-stripe-js";
 import {
   Loader2,
   CheckCircle2,
@@ -8,10 +13,9 @@ import {
   FlaskConical,
   Clock,
   AlertTriangle,
-  ChevronDown,
-  ChevronRight,
   FileSignature,
   ScrollText,
+  CreditCard,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,7 +28,32 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { acceptQuote } from "@/lib/actions/quotes";
-import { getSigningSession } from "@/lib/actions/pandadoc-session";
+import { getDocuSignSigningUrl } from "@/lib/actions/docusign-session";
+import { DryRunLogPanel } from "@/components/ui/dry-run-log-panel";
+import { formatCurrency } from "@/lib/format";
+
+let stripePromise: Promise<Stripe | null> | null = null;
+function getStripe() {
+  if (!stripePromise) {
+    stripePromise = import("@stripe/stripe-js").then(({ loadStripe }) =>
+      loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!),
+    );
+  }
+  return stripePromise;
+}
+
+declare global {
+  interface Window {
+    DocuSign?: {
+      loadDocuSign(integrationKey: string): Promise<{
+        signing(opts: Record<string, unknown>): {
+          on(event: string, handler: (e: Record<string, unknown>) => void): void;
+          mount(selector: string): void;
+        };
+      }>;
+    };
+  }
+}
 
 interface LineItem {
   productName: string;
@@ -46,16 +75,9 @@ interface Props {
   expiresAt: string | null;
   lineItems: LineItem[];
   isDryRun: boolean;
-  hasPandaDoc: boolean;
+  hasDocuSign: boolean;
   signerName: string | null;
   wasCanceled: boolean;
-}
-
-function formatCurrency(cents: number, curr = "usd") {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: curr,
-  }).format(cents / 100);
 }
 
 export function AcceptQuoteClient({
@@ -69,7 +91,7 @@ export function AcceptQuoteClient({
   expiresAt,
   lineItems,
   isDryRun,
-  hasPandaDoc,
+  hasDocuSign,
   signerName,
   wasCanceled,
 }: Props) {
@@ -77,10 +99,8 @@ export function AcceptQuoteClient({
   const [error, setError] = useState<string | null>(null);
   const [accepted, setAccepted] = useState(status === "accepted");
   const [dryRunLog, setDryRunLog] = useState<string[] | null>(null);
-  const [logExpanded, setLogExpanded] = useState(true);
 
   const [signingReady, setSigningReady] = useState(false);
-  const [signingSessionId, setSigningSessionId] = useState<string | null>(null);
   const [loadingSession, setLoadingSession] = useState(false);
   const [documentSigned, setDocumentSigned] = useState(false);
   const signingContainerRef = useRef<HTMLDivElement>(null);
@@ -89,9 +109,15 @@ export function AcceptQuoteClient({
   const [termsAccepted, setTermsAccepted] = useState(false);
   const termsRef = useRef<HTMLDivElement>(null);
 
+  const [checkoutClientSecret, setCheckoutClientSecret] = useState<string | null>(null);
+  const [loadingCheckout, setLoadingCheckout] = useState(false);
+
   const expired = expiresAt ? new Date(expiresAt) < new Date() : false;
   const isTerminal =
     status === "canceled" || status === "accepted" || expired;
+
+  const isPayNow = collectionMethod === "charge_automatically";
+  const showCheckout = isPayNow && !!checkoutClientSecret && !accepted && !isDryRun;
 
   useEffect(() => {
     const el = termsRef.current;
@@ -108,45 +134,101 @@ export function AcceptQuoteClient({
     el.addEventListener("scroll", handleScroll);
     handleScroll();
     return () => el.removeEventListener("scroll", handleScroll);
-  }, [isTerminal, accepted, signingReady]);
+  }, [isTerminal, accepted, signingReady, showCheckout]);
 
-  const handlePandaDocMessage = useCallback(
-    (event: MessageEvent) => {
-      if (
-        event.origin !== "https://app.pandadoc.com" &&
-        event.origin !== "https://eSign.pandadoc.com"
-      )
-        return;
+  const handleDocuSignComplete = useCallback(() => {
+    setDocumentSigned(true);
+  }, []);
 
-      const type = event.data?.type;
-      if (
-        type === "session_view.document.completed" ||
-        type === "document.completed"
-      ) {
-        setDocumentSigned(true);
+  useEffect(() => {
+    if (documentSigned && !isAccepting && !loadingCheckout) {
+      if (isPayNow && !isDryRun) {
+        startEmbeddedCheckout();
+      } else {
+        handleAcceptAfterSign();
       }
-    },
-    [],
-  );
-
-  useEffect(() => {
-    window.addEventListener("message", handlePandaDocMessage);
-    return () => window.removeEventListener("message", handlePandaDocMessage);
-  }, [handlePandaDocMessage]);
-
-  useEffect(() => {
-    if (documentSigned && !isAccepting) {
-      handleAcceptAfterSign();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [documentSigned]);
+
+  async function startEmbeddedCheckout() {
+    setLoadingCheckout(true);
+    setError(null);
+
+    try {
+      const res = await fetch("/api/checkout/embedded", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || data.error) {
+        setError(data.error ?? "Failed to create checkout session.");
+        setLoadingCheckout(false);
+        return;
+      }
+
+      setCheckoutClientSecret(data.clientSecret);
+      setLoadingCheckout(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Unexpected error");
+      setLoadingCheckout(false);
+    }
+  }
+
+  async function handleCheckoutComplete() {
+    setIsAccepting(true);
+    setError(null);
+
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId = urlParams.get("session_id");
+
+      if (!sessionId) {
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+
+      if (!sessionId) {
+        const res = await fetch("/api/checkout/embedded", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+        const data = await res.json();
+        if (data.error?.includes("already been accepted")) {
+          setAccepted(true);
+          setIsAccepting(false);
+          return;
+        }
+      }
+
+      if (sessionId) {
+        const res = await fetch(
+          `/api/checkout/session-status?session_id=${sessionId}`,
+        );
+        const data = await res.json();
+        if (data.status === "complete") {
+          setAccepted(true);
+          setIsAccepting(false);
+          return;
+        }
+      }
+
+      setAccepted(true);
+      setIsAccepting(false);
+    } catch {
+      setAccepted(true);
+      setIsAccepting(false);
+    }
+  }
 
   async function startSigning() {
     setLoadingSession(true);
     setError(null);
 
     try {
-      const result = await getSigningSession(token);
+      const result = await getDocuSignSigningUrl(token);
 
       if (result.dryRun && result.dryRunLog) {
         setDryRunLog(result.dryRunLog);
@@ -154,26 +236,69 @@ export function AcceptQuoteClient({
         return;
       }
 
-      if (result.error || !result.sessionId) {
+      if (result.error || !result.signingUrl) {
         setError(result.error ?? "Could not start signing session.");
         setLoadingSession(false);
         return;
       }
 
-      setSigningSessionId(result.sessionId);
       setSigningReady(true);
       setLoadingSession(false);
 
       requestAnimationFrame(async () => {
-        if (!signingContainerRef.current || !result.sessionId) return;
+        if (!signingContainerRef.current) return;
+        if (!result.integrationKey || !result.jsBundleUrl) return;
+
         try {
-          const { Signing } = await import("pandadoc-signing");
-          const signing = new Signing(
-            signingContainerRef.current.id,
-            { sessionId: result.sessionId, width: "100%", height: 600 },
-            { region: "com" },
-          );
-          await signing.open();
+          if (!window.DocuSign) {
+            await new Promise<void>((resolve, reject) => {
+              const script = document.createElement("script");
+              script.src = result.jsBundleUrl!;
+              script.onload = () => resolve();
+              script.onerror = () => reject(new Error("Failed to load DocuSign JS SDK"));
+              document.head.appendChild(script);
+            });
+          }
+
+          const ds = await window.DocuSign!.loadDocuSign(result.integrationKey);
+          const signing = ds.signing({
+            url: result.signingUrl,
+            displayFormat: "focused",
+            style: {
+              branding: {
+                primaryButton: {
+                  backgroundColor: "#1E3A5F",
+                  color: "#fff",
+                },
+              },
+              signingNavigationButton: {
+                finishText: "Complete Signing",
+                position: "bottom-right",
+              },
+            },
+          });
+
+          signing.on("ready", () => {
+            console.log("[DocuSign] Signing UI ready");
+          });
+
+          signing.on("sessionEnd", (event: Record<string, unknown>) => {
+            const endType = event.sessionEndType ?? event.type;
+            console.log("[DocuSign] sessionEnd:", endType);
+            if (endType === "signing_complete") {
+              handleDocuSignComplete();
+            } else if (endType === "decline") {
+              setError("The document was declined.");
+              setSigningReady(false);
+            } else if (endType === "cancel") {
+              setSigningReady(false);
+            } else if (endType === "ttl_expired" || endType === "session_timeout") {
+              setError("Signing session expired. Please try again.");
+              setSigningReady(false);
+            }
+          });
+
+          signing.mount("#docusign-signing-container");
         } catch (err) {
           setError(
             `Failed to load signing: ${err instanceof Error ? err.message : String(err)}`,
@@ -197,10 +322,6 @@ export function AcceptQuoteClient({
         setIsAccepting(false);
         return;
       }
-      if (result.redirectUrl) {
-        window.location.href = result.redirectUrl;
-        return;
-      }
       setAccepted(true);
       setIsAccepting(false);
     } catch (err) {
@@ -214,6 +335,12 @@ export function AcceptQuoteClient({
     setError(null);
     setDryRunLog(null);
 
+    if (isPayNow && !isDryRun) {
+      setIsAccepting(false);
+      await startEmbeddedCheckout();
+      return;
+    }
+
     try {
       const result = await acceptQuote(token);
       if (!result.success) {
@@ -226,10 +353,6 @@ export function AcceptQuoteClient({
         setIsAccepting(false);
         return;
       }
-      if (result.redirectUrl) {
-        window.location.href = result.redirectUrl;
-        return;
-      }
       setAccepted(true);
       setIsAccepting(false);
     } catch (err) {
@@ -240,19 +363,23 @@ export function AcceptQuoteClient({
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-muted/30 px-4 py-12">
-      <Card className="w-full max-w-2xl">
+      <Card className={`w-full ${showCheckout ? "max-w-4xl" : "max-w-2xl"}`}>
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">
             {accepted
               ? "Quote Accepted"
-              : documentSigned
-                ? "Processing..."
-                : "Review Your Quote"}
+              : showCheckout
+                ? "Complete Payment"
+                : documentSigned
+                  ? "Processing..."
+                  : "Review Your Quote"}
           </CardTitle>
           <CardDescription>
             {accepted
               ? "Thank you — your agreement has been confirmed."
-              : `Prepared for ${customerName}`}
+              : showCheckout
+                ? `Complete your payment for ${customerName}`
+                : `Prepared for ${customerName}`}
           </CardDescription>
           {isDryRun && (
             <Badge
@@ -266,7 +393,7 @@ export function AcceptQuoteClient({
         </CardHeader>
 
         <CardContent className="flex flex-col gap-5">
-          {wasCanceled && !accepted && (
+          {wasCanceled && !accepted && !showCheckout && (
             <div className="rounded-md border border-amber-500/50 bg-amber-50/50 px-4 py-3 text-sm text-amber-700 dark:bg-amber-950/20 dark:text-amber-400">
               <AlertTriangle className="mb-0.5 mr-1 inline size-4" />
               Payment was canceled. You can try again below.
@@ -274,13 +401,20 @@ export function AcceptQuoteClient({
           )}
 
           {accepted && (
-            <div className="flex flex-col items-center gap-2 py-4">
+            <div className="flex flex-col items-center gap-3 py-4">
               <CheckCircle2 className="size-12 text-green-500" />
               <p className="text-sm text-muted-foreground">
                 {collectionMethod === "send_invoice"
                   ? "An invoice will be sent to your billing email."
                   : "Your payment has been processed."}
               </p>
+              <Button
+                variant="outline"
+                className="mt-2"
+                onClick={() => (window.location.href = "/")}
+              >
+                Go Home
+              </Button>
             </div>
           )}
 
@@ -308,7 +442,7 @@ export function AcceptQuoteClient({
             </div>
           )}
 
-          {!isTerminal && !accepted && !signingReady && (
+          {!isTerminal && !accepted && !signingReady && !showCheckout && (
             <>
               <div className="space-y-2">
                 <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -375,8 +509,8 @@ export function AcceptQuoteClient({
             </>
           )}
 
-          {/* PandaDoc embedded signing iframe */}
-          {signingReady && signingSessionId && !accepted && (
+          {/* DocuSign Focused View signing container */}
+          {signingReady && !accepted && !showCheckout && (
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2">
                 <FileSignature className="size-4 text-primary" />
@@ -385,43 +519,71 @@ export function AcceptQuoteClient({
                 </span>
               </div>
               <div
-                id="pandadoc-signing-container"
+                id="docusign-signing-container"
                 ref={signingContainerRef}
                 className="min-h-[620px] overflow-hidden rounded-lg border"
               />
               {documentSigned && (
                 <div className="flex items-center justify-center gap-2 py-2 text-sm text-green-600">
                   <CheckCircle2 className="size-4" />
-                  Document signed — finalizing...
+                  Document signed — preparing payment...
                 </div>
               )}
             </div>
           )}
 
-          {dryRunLog && dryRunLog.length > 0 && (
-            <div className="rounded-lg border border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20">
-              <button
-                type="button"
-                onClick={() => setLogExpanded((v) => !v)}
-                className="flex w-full items-center justify-between px-4 py-3 text-left"
-              >
-                <span className="text-sm font-medium text-amber-700 dark:text-amber-400">
-                  Dry Run Results ({dryRunLog.length} entries)
-                </span>
-                {logExpanded ? (
-                  <ChevronDown className="size-4 text-amber-600" />
-                ) : (
-                  <ChevronRight className="size-4 text-amber-600" />
-                )}
-              </button>
-              {logExpanded && (
-                <div className="max-h-60 overflow-y-auto border-t border-amber-500/20 px-4 py-3">
-                  <pre className="whitespace-pre-wrap font-mono text-xs leading-relaxed text-amber-900 dark:text-amber-200">
-                    {dryRunLog.join("\n")}
-                  </pre>
+          {/* Embedded Stripe Checkout */}
+          {showCheckout && (
+            <div className="flex flex-col gap-4">
+              <div className="rounded-lg border bg-muted/20 px-4 py-3">
+                <div className="flex items-center gap-2 text-sm">
+                  <CreditCard className="size-4 text-primary" />
+                  <span className="font-medium">
+                    Order Summary — {formatCurrency(totalAmount, currency)}
+                  </span>
                 </div>
-              )}
+                <div className="mt-2 space-y-1">
+                  {lineItems.map((li, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between text-xs text-muted-foreground"
+                    >
+                      <span>
+                        {li.productName} &times; {li.quantity}
+                      </span>
+                      <span className="tabular-nums">
+                        {formatCurrency(li.unitAmount * li.quantity, li.currency)}
+                        /{li.interval}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <EmbeddedCheckoutProvider
+                stripe={getStripe()}
+                options={{
+                  clientSecret: checkoutClientSecret!,
+                  onComplete: handleCheckoutComplete,
+                }}
+              >
+                <EmbeddedCheckout className="min-h-[400px]" />
+              </EmbeddedCheckoutProvider>
             </div>
+          )}
+
+          {/* Loading checkout spinner */}
+          {loadingCheckout && (
+            <div className="flex flex-col items-center gap-3 py-8">
+              <Loader2 className="size-8 animate-spin text-primary" />
+              <p className="text-sm text-muted-foreground">
+                Preparing secure payment form...
+              </p>
+            </div>
+          )}
+
+          {dryRunLog && dryRunLog.length > 0 && (
+            <DryRunLogPanel logs={dryRunLog} maxHeight="max-h-60" />
           )}
 
           {error && (
@@ -430,7 +592,7 @@ export function AcceptQuoteClient({
             </div>
           )}
 
-          {!isTerminal && !accepted && !signingReady && (
+          {!isTerminal && !accepted && !signingReady && !showCheckout && !loadingCheckout && (
             <>
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-2">
@@ -510,251 +672,21 @@ export function AcceptQuoteClient({
                   </p>
 
                   <p className="mb-2">
-                    <strong>3. The Services.</strong> The Displai Services
-                    include a proprietary software application to be hosted and
-                    made available by Displai on a software-as-a-service basis
-                    and technology through which digital feeds, apps, and content
-                    created and provided by you or third parties (the
-                    &ldquo;Digital Displays&rdquo;) can be hosted and displayed
-                    (collectively, the &ldquo;Services&rdquo;). The Services may
-                    also contain links, text, graphics, images, audio, video,
-                    information, code, or other materials provided by Displai
-                    (&ldquo;Displai Content&rdquo;). Displai does not guarantee
-                    that any parts of the Services will be available at all
-                    times, and Displai may change, update, or discontinue the
-                    Services without notice to you.
-                  </p>
-
-                  <p className="mb-2">
-                    <strong>4. Digital Displays; Third Party Content.</strong>{" "}
-                    You expressly agree and acknowledge that you will not hold
-                    Displai responsible for the Digital Displays or any other
-                    third-party content created by you or third parties that may
-                    be hosted or displayed on or through the Services, and you
-                    agree to indemnify and hold Displai harmless from and against
-                    any claims or damages arising out of or resulting from the
-                    Digital Displays or any other third-party content. Displai
-                    does not review or guarantee the existence, quality, or
-                    legality of the Digital Displays; the truth or accuracy of
-                    Digital Displays; or that Digital Displays will not contain
-                    offensive content.
-                  </p>
-
-                  <p className="mb-2">
-                    <strong>5. Intellectual Property.</strong> You acknowledge
-                    that the Services and Displai Content are the proprietary
-                    intellectual property of Displai or its licensors. The
-                    Services are protected by copyright, trademark, and other
-                    laws. Except as expressly provided in these TOS, Displai and
-                    its licensors exclusively own all right, title, and interest
-                    in and to the Services and Displai Content, including all
-                    associated intellectual property rights. We grant you (and to
-                    the extent applicable, your employees or individual
-                    contractors acting for your exclusive benefit) a limited,
-                    non-exclusive, non-transferable license, without the right to
-                    sublicense, to access and use the Services solely for your
-                    internal business purposes and as permitted by these TOS. You
-                    agree not to: (i) rent, lease, sublicense, distribute,
-                    resell, transfer, copy, modify, create derivative works of,
-                    publicly display, publicly perform, transmit, stream,
-                    broadcast or time-share the Services; (ii) commercially
-                    exploit, or make the Services available to any third party,
-                    in whole or in part; (iii) except to the limited extent
-                    expressly prohibited by law, decompile, disassemble, reverse-
-                    compile, reverse-assemble or otherwise reverse-engineer any
-                    aspect of the Services; (iv) permit anyone else to do any of
-                    the foregoing; or (v) otherwise use the Services in any way
-                    not expressly permitted by this TOS. All trademarks, service
-                    marks, logos, trade names and any other proprietary
-                    designations of Displai used herein are trademarks or
-                    registered trademarks of Displai. No rights or licenses are
-                    granted to you other than the express rights granted in these
-                    TOS.
-                  </p>
-
-                  <p className="mb-2">
-                    <strong>6. Confidentiality.</strong>{" "}
-                    &ldquo;Confidential Information&rdquo; means, with respect
-                    to a party (the &ldquo;disclosing party&rdquo;), information
-                    that pertains to such party&apos;s business, including,
-                    without limitation, technical, marketing, financial,
-                    employee, planning, product roadmaps and documentation,
-                    Customer Content, performance results, pricing, and other
-                    confidential or proprietary information. The receiving party
-                    shall preserve the confidentiality of the disclosing
-                    party&apos;s Confidential Information and treat such
-                    Confidential Information with at least the same degree of
-                    care that the receiving party uses to protect its own
-                    Confidential Information, but not less than a reasonable
-                    standard of care.
-                  </p>
-
-                  <p className="mb-2">
-                    <strong>7. Your Responsibilities.</strong> You are solely
-                    responsible for all data, information, feedback, suggestions,
-                    text, content and other materials that you upload, post,
-                    deliver, provide or otherwise transmit or store in connection
-                    with or relating to the Services (&ldquo;Customer
-                    Content&rdquo;). You, not Displai, own Customer Content and
-                    are solely responsible for the quality and legality of your
-                    Customer Content. You are solely responsible for: (a) having
-                    Internet access and an active Third Party Provider account,
-                    if applicable; (b) ensuring that all registration and account
-                    information and data are current and accurate; (c) managing
-                    all account activity; (d) maintaining the confidentiality and
-                    security of your username, password and account information;
-                    and (e) securing all consents and permissions to enable you
-                    to maintain your Third Party Provider accounts.
-                  </p>
-
-                  <p className="mb-2">
-                    <strong>8. Fees.</strong> We may offer subscriptions or other
-                    offers (e.g., free trials), containing different options and
-                    features. You agree to pay the usage fees set forth in your
-                    Order Form, as applicable, and any applicable taxes. Payment
-                    obligations cannot be canceled and fees paid are
-                    non-refundable. If at any time you are overdue on your
-                    account, Displai may suspend your access to the Services
-                    and/or terminate these TOS. Unless you have filed a fee
-                    dispute, if you are overdue on payment and fail to pay within
-                    ten (10) days of the payment due date, then at our sole
-                    discretion we may (i) assess a late fee of either 1.5% per
-                    month, or the maximum amount allowable by law, whichever is
-                    less, and (ii) suspend our Services to you until you pay the
-                    amount you are overdue plus any applicable fees.
-                  </p>
-
-                  <p className="mb-2">
-                    <strong>9. Subscription Term; Termination.</strong> The
-                    period of these TOS will commence on the date they are
-                    accepted by you and continue for the period specified in your
-                    Order Form (the &ldquo;Initial Period&rdquo;). Unless
-                    otherwise set forth in the Order Form, the Subscription Term
-                    shall automatically renew for successive periods equal to the
-                    term specified in the Order Form, unless either party
-                    notifies the other party of its intent not to renew at least
-                    thirty (30) days prior to the conclusion of the
-                    then-current term. You have the right to terminate these TOS
-                    at any time if Displai has materially breached these TOS and
-                    does not cure such breach within thirty (30) days following
-                    notice from you. All Customer Content may be permanently
-                    deleted by Displai thirty days after any termination of your
-                    account. All fees paid are non-refundable and non-cancelable.
-                  </p>
-
-                  <p className="mb-2">
-                    <strong>10. Rules of Conduct.</strong> You expressly agree
-                    not to do any of the following: (a) send unlawful,
-                    threatening, abusive or defamatory communications; (b)
-                    utilize intellectual property without authorization; (c)
-                    violate any law, rule or regulation; (d) transmit viruses or
-                    interfere with the operation of the Services; (e) adapt or
-                    hack the Services or attempt to gain unauthorized access; (f)
-                    collect personally identifiable information without
-                    permission; (g) develop a competing product or service; (h)
-                    impose an unreasonable load on our infrastructure; or (i)
-                    impersonate another person.
-                  </p>
-
-                  <p className="mb-2">
-                    <strong>11. Customer Breach.</strong> You are in breach of
-                    these TOS if you (a) fail to meet your material obligations,
-                    including any nonpayment of Fees; or (b) file or initiate
-                    proceedings seeking liquidation, reorganization or other
-                    relief under any bankruptcy or insolvency law. Upon your
-                    breach, Displai may suspend or terminate performance and
-                    obligations without notice or further liability. You agree
-                    and acknowledge that a breach of your obligations will cause
-                    irreparable harm to Displai.
-                  </p>
-
-                  <p className="mb-2">
-                    <strong>
-                      12. Representations and Warranty Disclaimers.
-                    </strong>{" "}
-                    Each party represents and warrants that it has full power and
-                    authority to enter into these TOS. Displai represents and
-                    warrants that it will perform the Services in a professional
-                    and workmanlike manner.{" "}
-                    <strong>
-                      THE SERVICES AND DISPLAI CONTENT ARE PROVIDED ON AN
-                      &ldquo;AS IS&rdquo; AND &ldquo;AS AVAILABLE&rdquo; BASIS,
-                      WITHOUT WARRANTY OF ANY KIND. WE EXPLICITLY DISCLAIM ANY
-                      WARRANTIES OF FITNESS FOR A PARTICULAR PURPOSE,
-                      MERCHANTABILITY, QUIET ENJOYMENT OR NON-INFRINGEMENT, AND
-                      ANY WARRANTIES RELATED TO THIRD-PARTY CONTENT, EQUIPMENT,
-                      MATERIAL, WEBSITES, SERVICES OR SOFTWARE.
-                    </strong>
-                  </p>
-
-                  <p className="mb-2">
-                    <strong>13. Limitations.</strong>{" "}
-                    <strong>
-                      YOU UNDERSTAND AND AGREE THAT UNDER NO LEGAL THEORY SHALL
-                      WE BE LIABLE TO YOU FOR ANY INDIRECT, INCIDENTAL, SPECIAL,
-                      CONSEQUENTIAL OR EXEMPLARY DAMAGES, INCLUDING WITHOUT
-                      LIMITATION DAMAGES FOR LOSS OF PROFITS, GOODWILL, OR OTHER
-                      LOSSES. OUR LIABILITY TO YOU FOR ANY CAUSE WHATSOEVER WILL
-                      AT ALL TIMES BE LIMITED TO THE AMOUNT PAID BY YOU TO US FOR
-                      THE SERVICES DURING THE 12 MONTHS PRECEDING THE CLAIM.
-                    </strong>
-                  </p>
-
-                  <p className="mb-2">
-                    <strong>14. Indemnification.</strong> You agree to defend,
-                    indemnify, and hold Displai harmless from and against any
-                    claims, liabilities, damages, losses, and expenses,
-                    including reasonable legal fees, arising out of or in any way
-                    connected with your access to or use of the Services, your
-                    breach of any law or the rights of a third party, or your
-                    violation of these TOS.
-                  </p>
-
-                  <p className="mb-2">
-                    <strong>
-                      15. Dispute Resolution and Binding Arbitration.
-                    </strong>{" "}
-                    If you have any dispute with us, you agree that before taking
-                    any formal action, you will contact us and provide a written
-                    description of the dispute. Except as provided herein, any
-                    dispute will be resolved only by binding arbitration in San
-                    Francisco, CA. The arbitration will be conducted under the
-                    rules of JAMS.{" "}
-                    <strong>
-                      ARBITRATION MEANS THAT YOU WAIVE YOUR RIGHT TO A JURY
-                      TRIAL.
-                    </strong>{" "}
-                    Both parties agree that any claims or controversies must be
-                    brought on an individual basis only. The arbitrator cannot
-                    combine more than one person&apos;s or entity&apos;s claims
-                    into a single case, and cannot preside over any consolidated,
-                    class or representative proceeding.
-                  </p>
-
-                  <p className="mb-2">
-                    <strong>16. General Provisions.</strong> You agree that any
-                    notice, agreements, disclosure or other communications that
-                    we send to you electronically will satisfy any requirement
-                    that such communications be in writing. You may not assign
-                    your rights or obligations without our prior written consent.
-                    We may assign or transfer these TOS without restriction.
-                    These TOS supersede all prior and contemporaneous proposals,
-                    statements, and agreements, oral and written. These TOS shall
-                    be governed by the laws of California regardless of any
-                    conflicts of law principles. Except for claims that must be
-                    arbitrated, all claims must be resolved exclusively by a
-                    state or federal court located in the Northern District of
-                    California.
-                  </p>
-
-                  <p className="mb-3">
-                    <strong>17. Contacting Displai.</strong> If you have any
-                    questions, please contact us at{" "}
+                    <strong>3–17.</strong> The remaining provisions of this TOS
+                    (covering The Services, Digital Displays, Intellectual
+                    Property, Confidentiality, Your Responsibilities, Fees,
+                    Subscription Term &amp; Termination, Rules of Conduct,
+                    Customer Breach, Representations &amp; Warranty Disclaimers,
+                    Limitations, Indemnification, Dispute Resolution &amp;
+                    Binding Arbitration, and General Provisions) are incorporated
+                    by reference. The full text is available at{" "}
                     <a
-                      href="mailto:support@displai.ai"
+                      href="https://displai.ai/terms"
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="underline"
                     >
-                      support@displai.ai
+                      displai.ai/terms
                     </a>
                     .
                   </p>
@@ -809,7 +741,7 @@ export function AcceptQuoteClient({
               <Button
                 size="lg"
                 className="w-full"
-                onClick={hasPandaDoc ? startSigning : handleDirectAccept}
+                onClick={hasDocuSign ? startSigning : handleDirectAccept}
                 disabled={
                   isAccepting || loadingSession || !termsAccepted
                 }
@@ -826,7 +758,7 @@ export function AcceptQuoteClient({
                     <FlaskConical className="size-4" />
                     Test Accept (Dry Run)
                   </>
-                ) : hasPandaDoc ? (
+                ) : hasDocuSign ? (
                   <>
                     <FileSignature className="size-4" />
                     Review &amp; Sign Agreement
