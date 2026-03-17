@@ -1,12 +1,17 @@
 import { Sidebar } from "@/components/sidebar";
+import { AppHeader } from "@/components/app-header";
+import { PageTitleProvider } from "@/components/page-title-context";
+import { AppShell } from "@/components/shell";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-screen">
-      <Sidebar />
-      <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto w-full max-w-[1400px] px-8 py-8">{children}</div>
-      </main>
-    </div>
+    <PageTitleProvider>
+      <AppShell
+        sidebar={<Sidebar />}
+        topBar={<AppHeader />}
+      >
+        {children}
+      </AppShell>
+    </PageTitleProvider>
   );
 }

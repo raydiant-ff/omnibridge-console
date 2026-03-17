@@ -32,7 +32,7 @@ Repo layout reference:
 - apps/console/src/lib/actions/ — server actions
 - apps/console/src/lib/queries/ — data fetching
 - packages/db/prisma/ — schema and migrations
-- packages/integrations/ — Stripe, Salesforce, PandaDoc clients
+- packages/integrations/ — Stripe, Salesforce, DocuSign clients
 
 Output style:
 - current branch

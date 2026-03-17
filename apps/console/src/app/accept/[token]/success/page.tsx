@@ -52,9 +52,11 @@ export default async function AcceptSuccessPage({ params, searchParams }: Props)
       <Card className="w-full max-w-md text-center">
         <CardHeader>
           <div className="mx-auto mb-4">
-            <CheckCircle2 className="size-16 text-green-500" />
+            <div className="flex size-16 items-center justify-center rounded-xl bg-success/10">
+              <CheckCircle2 className="size-8 text-success" />
+            </div>
           </div>
-          <CardTitle className="text-2xl">Payment Confirmed</CardTitle>
+          <CardTitle className="text-lg">Payment Confirmed</CardTitle>
           <CardDescription>
             Thank you, {record.customerName}. Your subscription is now active.
           </CardDescription>

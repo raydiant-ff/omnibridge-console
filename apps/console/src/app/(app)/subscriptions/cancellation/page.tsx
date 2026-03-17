@@ -1,15 +1,14 @@
 import { XCircle } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/workspace/page-header";
 
 export default function CancellationPage() {
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Cancellation</h1>
-        <p className="text-sm text-muted-foreground">
-          Cancel an active subscription immediately or at period end.
-        </p>
-      </div>
+      <PageHeader
+        title="Cancellation"
+        description="Cancel an active subscription immediately or at period end."
+      />
 
       <Card>
         <CardContent className="flex flex-col items-center gap-4 py-16">

@@ -25,7 +25,7 @@ const STATUS_VARIANT: Record<string, "default" | "secondary" | "destructive" | "
 export function WorkItemsTab({ items }: Props) {
   if (items.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-12 text-center">
+      <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed py-12 text-center">
         <p className="text-sm font-medium">No work items</p>
         <p className="text-sm text-muted-foreground">
           Work items created for this customer will appear here.
@@ -35,7 +35,7 @@ export function WorkItemsTab({ items }: Props) {
   }
 
   return (
-    <div className="rounded-lg border">
+    <div className="rounded-xl border">
       <Table>
         <TableHeader>
           <TableRow>

@@ -4,7 +4,7 @@ Omni is a production SaaS platform centered on:
 - Next.js / TypeScript (monorepo via pnpm + Turborepo)
 - Stripe billing, quoting, subscriptions, invoicing
 - Salesforce-backed CRM/account context
-- PandaDoc document generation and e-signature
+- DocuSign e-signature (Stripe PDF + Focused View embedded signing)
 - strict production safety, idempotency, and auditability
 
 ## Repo structure
@@ -17,7 +17,7 @@ packages/ui/           — Shared UI utilities (cn)
 packages/integrations/
   salesforce/          — Salesforce JWT auth, SOQL, CRUD
   stripe/              — Stripe client, webhook verification
-  pandadoc/            — PandaDoc REST API client
+  docusign/            — DocuSign eSignature REST API client (JWT auth, envelopes, Focused View)
 scripts/               — Operational scripts (audits, backfills, CSM tools)
 sf-metadata/           — Salesforce custom object/field metadata (sfdx)
 ```
@@ -54,7 +54,7 @@ sf-metadata/           — Salesforce custom object/field metadata (sfdx)
 ### Quoting / checkout domain
 - Quote acceptance logic must remain consistent with downstream billing creation.
 - If a change affects quote acceptance, payment collection, invoicing, or subscription start dates, call that out explicitly.
-- PandaDoc integration handles document generation and e-signature; Stripe handles the financial quote.
+- DocuSign handles e-signature via Focused View; Stripe generates the quote PDF. No template/merge logic needed.
 
 ## Required work style
 

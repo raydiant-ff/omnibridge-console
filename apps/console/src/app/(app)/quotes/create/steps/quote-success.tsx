@@ -73,7 +73,7 @@ export function QuoteSuccess({ result, state, onStartNew }: Props) {
         )}
 
         {result.dryRunLog && result.dryRunLog.length > 0 && (
-          <div className="w-full max-w-md rounded-lg border border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20">
+          <div className="w-full max-w-md rounded-xl border border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20">
             <button
               type="button"
               onClick={() => setLogExpanded((v) => !v)}
@@ -100,10 +100,10 @@ export function QuoteSuccess({ result, state, onStartNew }: Props) {
 
         {acceptUrl && (
           <div className="w-full max-w-md">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <p className="mb-2 text-sm font-medium text-muted-foreground">
               Customer Acceptance Link
             </p>
-            <div className="flex items-center gap-2 rounded-lg border bg-muted/50 px-4 py-3">
+            <div className="flex items-center gap-2 rounded-xl border bg-muted/50 px-4 py-3">
               <code className="flex-1 truncate text-xs">{acceptUrl}</code>
               <Button variant="ghost" size="sm" onClick={copyAcceptUrl}>
                 {copied ? (
@@ -171,7 +171,7 @@ function ResourceLink({
   href?: string;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-lg border px-4 py-3">
+    <div className="flex items-center justify-between rounded-xl border px-4 py-3">
       <div className="flex flex-col gap-0.5">
         <span className="text-xs text-muted-foreground">{label}</span>
         <span className="font-mono text-sm">{id}</span>

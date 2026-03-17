@@ -36,8 +36,8 @@ const MOCK_PRODUCTS: StripeProduct[] = [
 ];
 
 const MOCK_PRICES: StripeProductPrice[] = [
-  { id: "price_mock_starter_mo", nickname: "Monthly", unitAmount: 2900, currency: "usd", interval: "month", active: true, type: "recurring" },
   { id: "price_mock_starter_yr", nickname: "Annual", unitAmount: 29000, currency: "usd", interval: "year", active: true, type: "recurring" },
+  { id: "price_mock_starter_mo", nickname: "Monthly", unitAmount: 2900, currency: "usd", interval: "month", active: true, type: "recurring" },
 ];
 
 async function _fetchStripeProductsFromApi(): Promise<StripeProduct[]> {
@@ -60,7 +60,7 @@ async function _fetchStripeProductsFromApi(): Promise<StripeProduct[]> {
     metadata: prod.metadata,
     created: prod.created,
     updated: prod.updated,
-    priceCount: 0,
+    priceCount: prod.default_price ? 1 : 0,
   }));
 }
 
@@ -138,6 +138,21 @@ function toProductPrice(p: {
   };
 }
 
+/**
+ * For recurring prices, prefer the annual/yearly price as the canonical base.
+ * All billing-frequency normalization (quarterly, semi-annual, etc.) derives
+ * from the annual amount, avoiding dynamic prices from shorter intervals.
+ */
+function preferAnnualPrice<
+  T extends { recurring: { interval: string } | null; unit_amount: number | null },
+>(candidates: T[]): T | undefined {
+  const yearly = candidates.find(
+    (p) => p.recurring?.interval === "year" && p.unit_amount != null,
+  );
+  if (yearly) return yearly;
+  return candidates.find((p) => p.unit_amount != null);
+}
+
 export async function fetchStandardPriceForProduct(
   productId: string,
   defaultPriceId: string | null,
@@ -168,24 +183,24 @@ export async function fetchStandardPriceForProduct(
         (p) => p.metadata?.source === "backfill_standard_price",
       );
 
-      const correctBackfill = backfilled.find((p) => recurrenceMatches(p));
-      if (correctBackfill) return toProductPrice(correctBackfill);
+      const matchingBackfills = backfilled.filter((p) => recurrenceMatches(p));
+      if (matchingBackfills.length > 0) {
+        const pick = preferAnnualPrice(matchingBackfills);
+        if (pick) return toProductPrice(pick);
+      }
 
       if (backfilled.length > 0 && shouldRecur === null) {
-        return toProductPrice(backfilled[0]);
+        const pick = preferAnnualPrice(backfilled);
+        if (pick) return toProductPrice(pick);
       }
 
-      if (defaultPriceId) {
-        const dp = allPrices.data.find(
-          (p) => p.id === defaultPriceId && recurrenceMatches(p),
-        );
-        if (dp) return toProductPrice(dp);
-      }
-
-      const matching = allPrices.data.find(
+      const recurrencePool = allPrices.data.filter(
         (p) => p.unit_amount != null && recurrenceMatches(p),
       );
-      if (matching) return toProductPrice(matching);
+      if (recurrencePool.length > 0) {
+        const pick = preferAnnualPrice(recurrencePool);
+        if (pick) return toProductPrice(pick);
+      }
 
       const first = allPrices.data.find((p) => p.unit_amount != null);
       if (first) return toProductPrice(first);

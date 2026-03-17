@@ -19,7 +19,7 @@ function ErrorContent() {
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 p-8">
-      <div className="flex w-full max-w-sm flex-col items-center gap-6 rounded-xl border bg-card p-8 shadow-sm">
+      <div className="flex w-full max-w-sm flex-col items-center gap-6 rounded-2xl border bg-card p-8 card-shadow">
         <div className="flex flex-col items-center gap-2 text-center">
           <div className="flex size-12 items-center justify-center rounded-full bg-destructive/10 text-destructive">
             <svg
@@ -37,7 +37,7 @@ function ErrorContent() {
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
           </div>
-          <h1 className="text-xl font-bold tracking-tight">
+          <h1 className="text-lg font-semibold tracking-tight">
             Authentication Error
           </h1>
           <p className="text-sm text-muted-foreground">{message}</p>

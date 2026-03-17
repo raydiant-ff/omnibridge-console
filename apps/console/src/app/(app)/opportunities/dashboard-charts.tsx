@@ -2,61 +2,30 @@
 
 import { useMemo, useState } from "react";
 import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  Legend,
+  DollarSign,
+  CheckCircle,
+  Target,
+  AlertTriangle,
+  Building2,
+  Calendar,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import {
   BarChart,
   Bar,
   XAxis,
   YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
+  Cell,
 } from "recharts";
+import { cn } from "@omnibridge/ui";
+import { Button } from "@/components/ui/button";
 import type { OpportunityRow } from "@/lib/queries/opportunities";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
-const CHART_COLORS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
-  "#9333ea",
-  "#f59e0b",
-  "#64748b",
-];
-
-const STAGE_COLOR: Record<string, string> = {
-  "Discovery & Qualification": "var(--chart-3)",
-  "Customer Evaluation": "var(--chart-5)",
-  "Pricing & Negotiation": "var(--chart-4)",
-  "Contract Sent": "var(--chart-2)",
-  "Closed Won": "var(--chart-1)",
-  "Closed Lost": "#64748b",
-};
+/* ─── Helpers ─── */
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-US", {
@@ -73,74 +42,59 @@ function formatCompactCurrency(amount: number): string {
   return formatCurrency(amount);
 }
 
-function monthKey(dateStr: string): string {
-  const d = new Date(dateStr);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+const STAGE_COLORS: Record<string, string> = {
+  "Discovery & Qualification": "oklch(0.65 0.15 155)",
+  "Customer Evaluation": "oklch(0.55 0.18 250)",
+  "Pricing & Negotiation": "oklch(0.7 0.15 60)",
+  "Contract Sent": "oklch(0.65 0.18 280)",
+  "Closed Won": "oklch(0.55 0.15 155)",
+  "Closed Lost": "oklch(0.55 0.01 250)",
+};
+
+const STAGE_ORDER = [
+  "Discovery & Qualification",
+  "Customer Evaluation",
+  "Pricing & Negotiation",
+  "Contract Sent",
+  "Closed Won",
+  "Closed Lost",
+];
+
+const BAR_PALETTE = [
+  "oklch(0.55 0.18 250)",  // blue
+  "oklch(0.65 0.15 155)",  // green
+  "oklch(0.7 0.15 60)",    // amber
+  "oklch(0.65 0.18 280)",  // purple
+  "oklch(0.7 0.18 350)",   // pink
+  "oklch(0.55 0.15 200)",  // teal
+  "oklch(0.6 0.12 30)",    // orange
+  "oklch(0.5 0.15 300)",   // violet
+  "oklch(0.65 0.1 120)",   // lime
+  "oklch(0.55 0.12 180)",  // cyan
+];
+
+function stageColor(stage: string): string {
+  return STAGE_COLORS[stage] ?? "oklch(0.55 0.01 250)";
 }
 
-function monthLabel(key: string): string {
-  const [y, m] = key.split("-");
-  const d = new Date(Number(y), Number(m) - 1);
-  return d.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+function stageBadgeClasses(stage: string): string {
+  switch (stage) {
+    case "Closed Won":
+      return "bg-success/10 text-success";
+    case "Closed Lost":
+      return "bg-destructive/10 text-destructive";
+    case "Contract Sent":
+      return "bg-purple-500/10 text-purple-600";
+    case "Pricing & Negotiation":
+      return "bg-amber-500/10 text-amber-600";
+    case "Customer Evaluation":
+      return "bg-blue-500/10 text-blue-600";
+    default:
+      return "bg-muted text-muted-foreground";
+  }
 }
 
-const RADIAN = Math.PI / 180;
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function renderPieLabel(props: any) {
-  const cx = (props.cx as number) ?? 0;
-  const cy = (props.cy as number) ?? 0;
-  const midAngle = (props.midAngle as number) ?? 0;
-  const outerRadius = (props.outerRadius as number) ?? 0;
-  const name = (props.name as string) ?? "";
-  const percent = (props.percent as number) ?? 0;
-
-  const radius = outerRadius + 32;
-  const x = cx + radius * Math.cos(-midAngle * RADIAN);
-  const y = cy + radius * Math.sin(-midAngle * RADIAN);
-
-  return (
-    <text
-      x={x}
-      y={y}
-      textAnchor={x > cx ? "start" : "end"}
-      dominantBaseline="central"
-      className="fill-foreground text-xs font-semibold"
-    >
-      {name} ({(percent * 100).toFixed(0)}%)
-    </text>
-  );
-}
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function renderPieLabelLine(props: any) {
-  const cx = (props.cx as number) ?? 0;
-  const cy = (props.cy as number) ?? 0;
-  const midAngle = (props.midAngle as number) ?? 0;
-  const outerRadius = (props.outerRadius as number) ?? 0;
-  const stroke = (props.stroke as string) ?? "#999";
-
-  const innerPt = {
-    x: cx + (outerRadius + 4) * Math.cos(-midAngle * RADIAN),
-    y: cy + (outerRadius + 4) * Math.sin(-midAngle * RADIAN),
-  };
-  const outerPt = {
-    x: cx + (outerRadius + 26) * Math.cos(-midAngle * RADIAN),
-    y: cy + (outerRadius + 26) * Math.sin(-midAngle * RADIAN),
-  };
-  return (
-    <line
-      x1={innerPt.x}
-      y1={innerPt.y}
-      x2={outerPt.x}
-      y2={outerPt.y}
-      stroke={stroke}
-      strokeWidth={1.5}
-    />
-  );
-}
-
-const ALL = "__all__";
+/* ─── Main ─── */
 
 interface DashboardChartsProps {
   opportunities: OpportunityRow[];
@@ -163,6 +117,14 @@ export function DashboardCharts({ opportunities }: DashboardChartsProps) {
     [opportunities, yearStart],
   );
 
+  const closedLostYtd = useMemo(
+    () =>
+      opportunities.filter(
+        (o) => o.stageName === "Closed Lost" && o.closeDate >= yearStart,
+      ),
+    [opportunities, yearStart],
+  );
+
   const openOpps = useMemo(
     () =>
       opportunities.filter(
@@ -171,97 +133,225 @@ export function DashboardCharts({ opportunities }: DashboardChartsProps) {
     [opportunities],
   );
 
+  const totalRevenue = useMemo(
+    () => closedWonYtd.reduce((s, o) => s + (o.amount ?? 0), 0),
+    [closedWonYtd],
+  );
+
+  const openPipeline = useMemo(
+    () => openOpps.reduce((s, o) => s + (o.amount ?? 0), 0),
+    [openOpps],
+  );
+
+  const winRate = useMemo(() => {
+    const total = closedWonYtd.length + closedLostYtd.length;
+    if (total === 0) return 0;
+    return (closedWonYtd.length / total) * 100;
+  }, [closedWonYtd, closedLostYtd]);
+
+  const overdueCount = useMemo(
+    () => openOpps.filter((o) => new Date(o.closeDate) < new Date()).length,
+    [openOpps],
+  );
+
   return (
-    <div className="flex flex-col gap-6">
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <StagesPieChart opps={ytdOpps} year={currentYear} />
-        <div className="flex flex-col gap-6">
-          <RevenueCard opps={closedWonYtd} year={currentYear} />
-          <TopCustomers opps={closedWonYtd} year={currentYear} />
+    <div className="space-y-6">
+      {/* Metrics Grid */}
+      <div className="grid grid-cols-4 gap-4">
+        <MetricCard
+          icon={DollarSign}
+          iconBg="bg-success/10"
+          iconColor="text-success"
+          label="Closed Won Revenue"
+          value={formatCompactCurrency(totalRevenue)}
+          subtitle={`${closedWonYtd.length} deals in ${currentYear}`}
+        />
+        <MetricCard
+          icon={Target}
+          iconBg="bg-blue-500/10"
+          iconColor="text-blue-600"
+          label="Open Pipeline"
+          value={formatCompactCurrency(openPipeline)}
+          subtitle={`${openOpps.length} open opportunities`}
+        />
+        <MetricCard
+          icon={CheckCircle}
+          iconBg="bg-purple-500/10"
+          iconColor="text-purple-600"
+          label="Win Rate"
+          value={`${winRate.toFixed(0)}%`}
+          subtitle={`${closedWonYtd.length}W / ${closedLostYtd.length}L this year`}
+        />
+        <MetricCard
+          icon={AlertTriangle}
+          iconBg={overdueCount > 0 ? "bg-destructive/10" : "bg-success/10"}
+          iconColor={overdueCount > 0 ? "text-destructive" : "text-success"}
+          label="Overdue"
+          value={String(overdueCount)}
+          subtitle={overdueCount > 0 ? "Past close date" : "All on track"}
+        />
+      </div>
+
+      {/* Pipeline by Stage (chart) + Top Customers (list) */}
+      <div className="grid grid-cols-3 gap-4">
+        <div className="col-span-2 bg-card rounded-2xl p-6 border border-border card-shadow">
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h3 className="text-base font-semibold text-foreground">Pipeline by Stage</h3>
+              <p className="text-sm text-muted-foreground">Revenue distribution across stages &mdash; {currentYear} YTD</p>
+            </div>
+            <div className="flex items-center gap-3 text-xs">
+              {STAGE_ORDER.filter(s => s !== "Closed Lost").map((stage) => (
+                <div key={stage} className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: stageColor(stage) }} />
+                  <span className="text-muted-foreground">{stage.replace("Discovery & Qualification", "Discovery").replace("Customer Evaluation", "Evaluation").replace("Pricing & Negotiation", "Negotiation")}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <PipelineByStageChart opps={ytdOpps} />
+        </div>
+
+        <div className="bg-card rounded-2xl p-6 border border-border card-shadow">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-base font-semibold text-foreground">Top Customers</h3>
+            <span className="px-2 py-1 text-xs font-medium bg-success/10 text-success rounded-full">
+              {currentYear} YTD
+            </span>
+          </div>
+          <TopCustomersList opps={closedWonYtd} />
         </div>
       </div>
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <ClosedWonByOperator opps={closedWonYtd} year={currentYear} />
-        <ExpirationBoard opps={openOpps} />
+
+      {/* Closed Won by Operator + Expiration Calendar — side by side */}
+      <div className="grid grid-cols-2 gap-4">
+        <div className="bg-card rounded-2xl p-6 border border-border card-shadow">
+          <div className="mb-6">
+            <h3 className="text-base font-semibold text-foreground">Closed Won by Operator</h3>
+            <p className="text-sm text-muted-foreground">Revenue leaderboard &mdash; {currentYear} YTD</p>
+          </div>
+          <ClosedWonByOperatorChart opps={closedWonYtd} />
+        </div>
+        <ExpirationCalendar opps={openOpps} />
       </div>
     </div>
   );
 }
 
-function StagesPieChart({ opps, year }: { opps: OpportunityRow[]; year: number }) {
-  const data = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const o of opps) {
-      counts.set(o.stageName, (counts.get(o.stageName) ?? 0) + 1);
-    }
-    return Array.from(counts.entries())
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value);
-  }, [opps]);
+/* ─── Metric Card ─── */
 
-  const total = opps.length;
-
+function MetricCard({
+  icon: Icon,
+  iconBg,
+  iconColor,
+  label,
+  value,
+  subtitle,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  iconBg: string;
+  iconColor: string;
+  label: string;
+  value: string;
+  subtitle?: string;
+}) {
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Opportunities by Stage</CardTitle>
-        <CardDescription>
-          {total} opportunities created in {year}
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {data.length === 0 ? (
-          <div className="flex h-[520px] items-center justify-center text-sm text-muted-foreground">
-            No opportunities yet this year.
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height={520}>
-            <PieChart>
-              <Pie
-                data={data}
-                cx="50%"
-                cy="50%"
-                outerRadius={180}
-                paddingAngle={1}
-                dataKey="value"
-                label={renderPieLabel}
-                labelLine={renderPieLabelLine}
-              >
-                {data.map((entry, i) => (
-                  <Cell
-                    key={entry.name}
-                    fill={STAGE_COLOR[entry.name] ?? CHART_COLORS[i % CHART_COLORS.length]}
-                  />
-                ))}
-              </Pie>
-              <Tooltip
-                formatter={(value, name) => {
-                  const v = Number(value) || 0;
-                  return [`${v} (${((v / total) * 100).toFixed(1)}%)`, String(name)];
-                }}
-              />
-              <Legend
-                formatter={(value: string) => (
-                  <span className="text-xs font-semibold text-foreground">
-                    {value}
-                  </span>
-                )}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        )}
-      </CardContent>
-    </Card>
+    <div className="bg-card rounded-2xl p-5 border border-border card-shadow">
+      <div className="flex items-start justify-between mb-3">
+        <div className={cn("p-2.5 rounded-xl", iconBg)}>
+          <Icon className={cn("w-5 h-5", iconColor)} />
+        </div>
+      </div>
+      <p className="text-2xl font-semibold text-foreground mb-1">{value}</p>
+      <p className="text-sm text-muted-foreground">{label}</p>
+      {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+    </div>
   );
 }
 
-function ClosedWonByOperator({
-  opps,
-  year,
-}: {
-  opps: OpportunityRow[];
-  year: number;
-}) {
+/* ─── Pipeline by Stage Chart ─── */
+
+function PipelineByStageChart({ opps }: { opps: OpportunityRow[] }) {
+  const data = useMemo(() => {
+    const byStage = new Map<string, { count: number; revenue: number }>();
+    for (const o of opps) {
+      if (o.stageName === "Closed Lost") continue;
+      const prev = byStage.get(o.stageName) ?? { count: 0, revenue: 0 };
+      byStage.set(o.stageName, {
+        count: prev.count + 1,
+        revenue: prev.revenue + (o.amount ?? 0),
+      });
+    }
+    return STAGE_ORDER.filter(s => s !== "Closed Lost")
+      .map((stage) => ({
+        stage: stage.replace("Discovery & Qualification", "Discovery").replace("Customer Evaluation", "Evaluation").replace("Pricing & Negotiation", "Negotiation"),
+        revenue: byStage.get(stage)?.revenue ?? 0,
+        count: byStage.get(stage)?.count ?? 0,
+        fill: stageColor(stage),
+      }))
+      .filter((d) => d.count > 0);
+  }, [opps]);
+
+  if (data.length === 0) {
+    return (
+      <div className="flex h-[240px] items-center justify-center text-sm text-muted-foreground">
+        No opportunities yet.
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-[240px]">
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} margin={{ left: 10, right: 10 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.005 250)" vertical={false} />
+          <XAxis
+            dataKey="stage"
+            tick={{ fill: "oklch(0.55 0.01 250)", fontSize: 12 }}
+            axisLine={{ stroke: "oklch(0.92 0.005 250)" }}
+            tickLine={false}
+          />
+          <YAxis
+            tickFormatter={(v) => formatCompactCurrency(v)}
+            tick={{ fill: "oklch(0.55 0.01 250)", fontSize: 12 }}
+            axisLine={{ stroke: "oklch(0.92 0.005 250)" }}
+            tickLine={false}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: "white",
+              border: "1px solid oklch(0.92 0.005 250)",
+              borderRadius: "12px",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            }}
+            formatter={(value, name) => {
+              if (name === "revenue") return [formatCurrency(Number(value)), "Revenue"];
+              return [String(value), String(name)];
+            }}
+          />
+          <Bar
+            dataKey="revenue"
+            radius={[6, 6, 0, 0]}
+            label={{
+              position: "top",
+              formatter: (v: number) => formatCompactCurrency(v),
+              fontSize: 11,
+              fill: "oklch(0.55 0.01 250)",
+            }}
+          >
+            {data.map((entry, i) => (
+              <Cell key={i} fill={entry.fill} />
+            ))}
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+
+/* ─── Closed Won by Operator (colored bars, taller) ─── */
+
+function ClosedWonByOperatorChart({ opps }: { opps: OpportunityRow[] }) {
   const data = useMemo(() => {
     const byOwner = new Map<string, { total: number; count: number }>();
     for (const o of opps) {
@@ -277,199 +367,68 @@ function ClosedWonByOperator({
       .sort((a, b) => b.total - a.total);
   }, [opps]);
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Closed Won by Operator</CardTitle>
-        <CardDescription>
-          Revenue leaderboard &mdash; {year} YTD
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {data.length === 0 ? (
-          <div className="flex h-[280px] items-center justify-center text-sm text-muted-foreground">
-            No closed-won deals yet this year.
-          </div>
-        ) : (
-          <ResponsiveContainer width="100%" height={Math.max(280, data.length * 50)}>
-            <BarChart data={data} layout="vertical" margin={{ left: 20, right: 20 }}>
-              <XAxis
-                type="number"
-                tickFormatter={(v) => formatCompactCurrency(v)}
-                fontSize={12}
-              />
-              <YAxis
-                type="category"
-                dataKey="name"
-                width={120}
-                fontSize={12}
-                tickLine={false}
-              />
-              <Tooltip
-                formatter={(value) => [formatCurrency(Number(value) || 0), "Revenue"]}
-                labelFormatter={(label) => String(label)}
-              />
-              <Bar
-                dataKey="total"
-                fill="var(--chart-1)"
-                radius={[0, 4, 4, 0]}
-                label={{
-                  position: "right",
-                  formatter: (v) => formatCompactCurrency(Number(v) || 0),
-                  fontSize: 12,
-                }}
-              />
-            </BarChart>
-          </ResponsiveContainer>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
+  if (data.length === 0) {
+    return (
+      <div className="flex h-[120px] items-center justify-center text-sm text-muted-foreground">
+        No closed-won deals yet this year.
+      </div>
+    );
+  }
 
-function ExpirationBoard({ opps }: { opps: OpportunityRow[] }) {
-  const [ownerFilter, setOwnerFilter] = useState(ALL);
-
-  const owners = useMemo(() => {
-    const set = new Set<string>();
-    for (const o of opps) {
-      if (o.ownerName) set.add(o.ownerName);
-    }
-    return Array.from(set).sort();
-  }, [opps]);
-
-  const filtered = useMemo(
-    () =>
-      ownerFilter === ALL
-        ? opps
-        : opps.filter((o) => o.ownerName === ownerFilter),
-    [opps, ownerFilter],
-  );
-
-  const grouped = useMemo(() => {
-    const map = new Map<string, OpportunityRow[]>();
-    for (const o of filtered) {
-      const key = monthKey(o.closeDate);
-      const arr = map.get(key) ?? [];
-      arr.push(o);
-      map.set(key, arr);
-    }
-    return Array.from(map.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, items]) => ({
-        key,
-        label: monthLabel(key),
-        items: items.sort((a, b) => a.closeDate.localeCompare(b.closeDate)),
-      }));
-  }, [filtered]);
-
-  const isPast = (dateStr: string) => new Date(dateStr) < new Date();
+  const chartHeight = Math.max(300, data.length * 48);
 
   return (
-    <Card>
-      <CardHeader>
-        <div className="flex items-center justify-between">
-          <div>
-            <CardTitle>Opportunity Expiration Calendar</CardTitle>
-            <CardDescription>
-              Open opportunities grouped by close date month
-            </CardDescription>
-          </div>
-          <Select value={ownerFilter} onValueChange={setOwnerFilter}>
-            <SelectTrigger size="sm" className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>All Operators</SelectItem>
-              {owners.map((o) => (
-                <SelectItem key={o} value={o}>
-                  {o}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </CardHeader>
-      <CardContent>
-        {grouped.length === 0 ? (
-          <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
-            No open opportunities to display.
-          </div>
-        ) : (
-          <div className="flex gap-4 overflow-x-auto pb-2">
-            {grouped.map((col) => (
-              <div
-                key={col.key}
-                className="flex w-[260px] flex-shrink-0 flex-col gap-2"
-              >
-                <div className="flex items-center justify-between rounded-md bg-muted px-3 py-2">
-                  <span className="text-sm font-semibold">{col.label}</span>
-                  <Badge variant="secondary">{col.items.length}</Badge>
-                </div>
-                <div className="flex flex-col gap-2">
-                  {col.items.map((opp) => (
-                    <div
-                      key={opp.id}
-                      className={`rounded-md border p-3 text-sm ${
-                        isPast(opp.closeDate)
-                          ? "border-destructive/40 bg-destructive/5"
-                          : "bg-card"
-                      }`}
-                    >
-                      <p
-                        className="font-medium leading-tight"
-                        title={opp.name}
-                      >
-                        {opp.name.length > 35
-                          ? opp.name.slice(0, 35) + "..."
-                          : opp.name}
-                      </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {opp.accountName ?? "No account"}
-                      </p>
-                      <div className="mt-2 flex items-center justify-between">
-                        <Badge variant="outline" className="text-[10px]">
-                          {opp.stageName}
-                        </Badge>
-                        <span className="font-mono text-xs">
-                          {opp.amount !== null
-                            ? formatCompactCurrency(opp.amount)
-                            : "-"}
-                        </span>
-                      </div>
-                      {opp.ownerName && (
-                        <p className="mt-1 text-[10px] text-muted-foreground">
-                          {opp.ownerName}
-                        </p>
-                      )}
-                      {isPast(opp.closeDate) && (
-                        <p className="mt-1 text-[10px] font-medium text-destructive">
-                          Overdue &mdash;{" "}
-                          {new Date(opp.closeDate).toLocaleDateString("en-US", {
-                            month: "short",
-                            day: "numeric",
-                          })}
-                        </p>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
+    <div style={{ height: chartHeight }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <BarChart data={data} layout="vertical" barCategoryGap="25%">
+          <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.92 0.005 250)" horizontal={false} />
+          <XAxis
+            type="number"
+            tickFormatter={(v) => formatCompactCurrency(v)}
+            tick={{ fill: "oklch(0.55 0.01 250)", fontSize: 12 }}
+            axisLine={{ stroke: "oklch(0.92 0.005 250)" }}
+          />
+          <YAxis
+            dataKey="name"
+            type="category"
+            tick={{ fill: "oklch(0.55 0.01 250)", fontSize: 12 }}
+            axisLine={{ stroke: "oklch(0.92 0.005 250)" }}
+            width={120}
+            tickLine={false}
+          />
+          <Tooltip
+            contentStyle={{
+              backgroundColor: "white",
+              border: "1px solid oklch(0.92 0.005 250)",
+              borderRadius: "12px",
+              boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+            }}
+            formatter={(value) => [formatCurrency(Number(value) || 0), "Revenue"]}
+            labelFormatter={(label) => String(label)}
+          />
+          <Bar
+            dataKey="total"
+            radius={[0, 6, 6, 0]}
+            label={{
+              position: "right",
+              formatter: (v: number) => formatCompactCurrency(v),
+              fontSize: 12,
+              fill: "oklch(0.55 0.01 250)",
+            }}
+          >
+            {data.map((_, i) => (
+              <Cell key={i} fill={BAR_PALETTE[i % BAR_PALETTE.length]} />
             ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
   );
 }
 
-function TopCustomers({
-  opps,
-  year,
-}: {
-  opps: OpportunityRow[];
-  year: number;
-}) {
+/* ─── Top Customers List (v0 rich list style) ─── */
+
+function TopCustomersList({ opps }: { opps: OpportunityRow[] }) {
   const data = useMemo(() => {
     const byAccount = new Map<string, { name: string; total: number; count: number }>();
     for (const o of opps) {
@@ -484,106 +443,190 @@ function TopCustomers({
     }
     return Array.from(byAccount.values())
       .sort((a, b) => b.total - a.total)
-      .slice(0, 20);
+      .slice(0, 15);
   }, [opps]);
 
+  if (data.length === 0) {
+    return (
+      <div className="flex h-[120px] items-center justify-center text-sm text-muted-foreground">
+        No closed-won deals yet.
+      </div>
+    );
+  }
+
   return (
-    <Card className="flex-1">
-      <CardHeader>
-        <CardTitle>Top 20 Customers &mdash; Closed Won</CardTitle>
-        <CardDescription>By revenue in {year} YTD</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {data.length === 0 ? (
-          <div className="flex h-[120px] items-center justify-center text-sm text-muted-foreground">
-            No closed-won deals yet.
+    <div className="divide-y divide-border max-h-[280px] overflow-y-auto">
+      {data.map((row, i) => (
+        <div
+          key={row.name}
+          className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+        >
+          <div className="w-7 h-7 rounded-lg bg-muted flex items-center justify-center shrink-0 text-xs font-semibold text-muted-foreground">
+            {i + 1}
           </div>
-        ) : (
-          <div className="max-h-[360px] overflow-y-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-8 text-center">#</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead className="text-right">Revenue</TableHead>
-                  <TableHead className="text-right">Deals</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.map((row, i) => (
-                  <TableRow key={row.name}>
-                    <TableCell className="text-center text-muted-foreground">
-                      {i + 1}
-                    </TableCell>
-                    <TableCell className="font-medium">{row.name}</TableCell>
-                    <TableCell className="text-right font-mono">
-                      {formatCurrency(row.total)}
-                    </TableCell>
-                    <TableCell className="text-right">{row.count}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">{row.name}</p>
+            <p className="text-xs text-muted-foreground">{row.count} deal{row.count !== 1 ? "s" : ""}</p>
           </div>
-        )}
-      </CardContent>
-    </Card>
+          <p className="text-sm font-mono font-semibold text-foreground shrink-0">
+            {formatCompactCurrency(row.total)}
+          </p>
+        </div>
+      ))}
+    </div>
   );
 }
 
-function RevenueCard({
-  opps,
-  year,
-}: {
-  opps: OpportunityRow[];
-  year: number;
-}) {
-  const { totalRevenue, dealCount, avgDealSize } = useMemo(() => {
-    let total = 0;
-    let count = 0;
+/* ─── Expiration Calendar (month-switchable, top 20 opps) ─── */
+
+function ExpirationCalendar({ opps }: { opps: OpportunityRow[] }) {
+  const now = new Date();
+  const [selectedMonth, setSelectedMonth] = useState(
+    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`,
+  );
+
+  // Collect all months that have open opps
+  const availableMonths = useMemo(() => {
+    const set = new Set<string>();
     for (const o of opps) {
-      total += o.amount ?? 0;
-      count++;
+      const d = new Date(o.closeDate);
+      set.add(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`);
     }
-    return {
-      totalRevenue: total,
-      dealCount: count,
-      avgDealSize: count > 0 ? total / count : 0,
-    };
+    return Array.from(set).sort();
   }, [opps]);
 
+  // Navigate months
+  const currentIdx = availableMonths.indexOf(selectedMonth);
+  const canPrev = currentIdx > 0;
+  const canNext = currentIdx < availableMonths.length - 1;
+
+  function goMonth(dir: -1 | 1) {
+    const nextIdx = currentIdx + dir;
+    if (nextIdx >= 0 && nextIdx < availableMonths.length) {
+      setSelectedMonth(availableMonths[nextIdx]);
+    }
+  }
+
+  // Filter opps for selected month, sorted by close date, top 20
+  const monthOpps = useMemo(() => {
+    return opps
+      .filter((o) => {
+        const d = new Date(o.closeDate);
+        const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        return mk === selectedMonth;
+      })
+      .sort((a, b) => a.closeDate.localeCompare(b.closeDate))
+      .slice(0, 20);
+  }, [opps, selectedMonth]);
+
+  const totalCount = opps.filter((o) => {
+    const d = new Date(o.closeDate);
+    const mk = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+    return mk === selectedMonth;
+  }).length;
+
+  const isPast = (dateStr: string) => new Date(dateStr) < new Date();
+
+  // Format selected month label
+  const [sy, sm] = selectedMonth.split("-");
+  const monthDisplay = new Date(Number(sy), Number(sm) - 1).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+  });
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Total Revenue YTD</CardTitle>
-        <CardDescription>Closed-won revenue in {year}</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-6">
+    <div className="bg-card rounded-2xl p-6 border border-border card-shadow">
+      <div className="flex items-center justify-between mb-4">
         <div>
-          <p className="text-4xl font-bold tracking-tight">
-            {formatCurrency(totalRevenue)}
-          </p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            from {dealCount} closed{dealCount === 1 ? " deal" : " deals"}
-          </p>
+          <h3 className="text-base font-semibold text-foreground">Expiration Calendar</h3>
+          <p className="text-sm text-muted-foreground">Open opps closing this month</p>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="rounded-md bg-muted/50 p-3">
-            <p className="text-xs font-medium text-muted-foreground">
-              Avg Deal Size
-            </p>
-            <p className="mt-1 text-lg font-semibold">
-              {formatCurrency(avgDealSize)}
-            </p>
-          </div>
-          <div className="rounded-md bg-muted/50 p-3">
-            <p className="text-xs font-medium text-muted-foreground">
-              Deals Closed
-            </p>
-            <p className="mt-1 text-lg font-semibold">{dealCount}</p>
-          </div>
+        <span className="px-2 py-1 text-xs font-medium bg-blue-500/10 text-blue-600 rounded-full">
+          {totalCount} total
+        </span>
+      </div>
+
+      {/* Month switcher */}
+      <div className="flex items-center justify-between mb-4 rounded-xl bg-muted px-3 py-2">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0"
+          disabled={!canPrev}
+          onClick={() => goMonth(-1)}
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </Button>
+        <span className="text-sm font-semibold text-foreground">{monthDisplay}</span>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="h-7 w-7 p-0"
+          disabled={!canNext}
+          onClick={() => goMonth(1)}
+        >
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+      </div>
+
+      {monthOpps.length === 0 ? (
+        <div className="flex h-[200px] items-center justify-center text-sm text-muted-foreground">
+          No open opps closing in {monthDisplay}.
         </div>
-      </CardContent>
-    </Card>
+      ) : (
+        <div className="space-y-2 max-h-[420px] overflow-y-auto">
+          {monthOpps.map((opp) => (
+            <div
+              key={opp.id}
+              className={cn(
+                "rounded-xl border p-3 text-sm transition-colors",
+                isPast(opp.closeDate)
+                  ? "border-destructive/40 bg-destructive/5"
+                  : "bg-muted/30 border-border hover:bg-muted/50",
+              )}
+            >
+              <div className="flex items-start justify-between mb-1">
+                <p className="font-medium text-foreground line-clamp-1 flex-1 mr-2" title={opp.name}>
+                  {opp.name}
+                </p>
+                <span className="font-mono text-xs text-foreground shrink-0">
+                  {opp.amount !== null ? formatCompactCurrency(opp.amount) : "—"}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
+                <Building2 className="w-3 h-3 shrink-0" />
+                <span className="truncate">{opp.accountName ?? "No account"}</span>
+                {opp.ownerName && (
+                  <>
+                    <span className="text-border">|</span>
+                    <span className="truncate">{opp.ownerName}</span>
+                  </>
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <span className={cn(
+                  "px-1.5 py-0.5 text-[10px] font-medium rounded-full",
+                  stageBadgeClasses(opp.stageName),
+                )}>
+                  {opp.stageName}
+                </span>
+                <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <Calendar className="w-3 h-3" />
+                  <span className={cn(isPast(opp.closeDate) && "text-destructive font-medium")}>
+                    {new Date(opp.closeDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    {isPast(opp.closeDate) && " (overdue)"}
+                  </span>
+                </div>
+              </div>
+            </div>
+          ))}
+          {totalCount > 20 && (
+            <p className="text-xs text-muted-foreground text-center pt-1">
+              Showing 20 of {totalCount} opportunities
+            </p>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

@@ -2,18 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowUpDown, ChevronDown, ChevronUp, ExternalLink } from "lucide-react";
+import { ArrowUpDown, ChevronDown, ChevronRight, ChevronUp, ExternalLink } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card } from "@/components/ui/card";
 import {
   Select,
   SelectContent,
@@ -66,7 +58,7 @@ function SortButton({
   return (
     <button
       type="button"
-      className="inline-flex items-center gap-0.5 font-medium"
+      className="inline-flex items-center gap-1 rounded-md border border-input bg-background px-2.5 py-1 text-xs font-medium shadow-sm hover:bg-accent hover:text-accent-foreground transition-colors"
       onClick={() => onToggle(field)}
     >
       {label}
@@ -130,14 +122,14 @@ export function AccountsTable({ myAccounts, allAccounts, isAdmin }: AccountsTabl
 
   return (
     <Card>
-      <CardHeader className="border-b">
+      <div className="p-6 border-b border-border">
         <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-1">
-            <CardTitle>Accounts</CardTitle>
-            <CardDescription>
+          <div>
+            <h3 className="text-base font-semibold text-foreground">Accounts</h3>
+            <p className="text-sm text-muted-foreground">
               {filtered.length} account{filtered.length !== 1 ? "s" : ""}
               {filtered.length !== sourceAccounts.length && ` of ${sourceAccounts.length}`}
-            </CardDescription>
+            </p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             {isAdmin && (
@@ -184,107 +176,93 @@ export function AccountsTable({ myAccounts, allAccounts, isAdmin }: AccountsTabl
                 ))}
               </SelectContent>
             </Select>
+            <SortButton field="mrr" label="MRR" activeField={sortField} activeDir={sortDir} onToggle={toggleSort} />
+            <SortButton field="arr" label="ARR" activeField={sortField} activeDir={sortDir} onToggle={toggleSort} />
           </div>
         </div>
-      </CardHeader>
-      <CardContent className="p-0">
+      </div>
+      <div className="divide-y divide-border">
         {filtered.length === 0 ? (
           <div className="px-6 py-12 text-center text-sm text-muted-foreground">
             No accounts match the current filters. Try adjusting your filters.
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Account Name</TableHead>
-                <TableHead>First Closed Won</TableHead>
-                <TableHead>Owner</TableHead>
-                <TableHead>CSM</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">
-                  <SortButton field="mrr" label="MRR" activeField={sortField} activeDir={sortDir} onToggle={toggleSort} />
-                </TableHead>
-                <TableHead className="text-right">
-                  <SortButton field="arr" label="ARR" activeField={sortField} activeDir={sortDir} onToggle={toggleSort} />
-                </TableHead>
-                <TableHead>Links</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((a) => {
-                const sfBase = process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://raydiant.lightning.force.com";
-                const sfUrl = `${sfBase}/lightning/r/Account/${a.id}/view`;
-                const stripeUrl = a.stripeCustomerId
-                  ? `https://dashboard.stripe.com/customers/${a.stripeCustomerId}`
-                  : null;
+          filtered.map((a) => {
+            const sfBase = process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://raydiant.lightning.force.com";
+            const sfUrl = `${sfBase}/lightning/r/Account/${a.id}/view`;
+            const stripeUrl = a.stripeCustomerId
+              ? `https://dashboard.stripe.com/customers/${a.stripeCustomerId}`
+              : null;
 
-                return (
-                  <TableRow key={a.id}>
-                    <TableCell className="whitespace-nowrap">
-                      <Link
-                        href={`/customers/${a.id}`}
-                        className="font-medium hover:underline"
-                        title={a.name}
-                      >
-                        {a.name.length > 40 ? `${a.name.slice(0, 40)}…` : a.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {fmtDate(a.dateOfFirstClosedWon)}
-                    </TableCell>
-                    <TableCell className="max-w-[160px] truncate text-muted-foreground" title={a.ownerName ?? undefined}>
-                      {a.ownerName ?? "—"}
-                    </TableCell>
-                    <TableCell className="max-w-[160px] truncate text-muted-foreground" title={a.csmName ?? undefined}>
-                      {a.csmName ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      {a.status ? (
-                        <Badge variant={a.status === "Active" || a.status === "Active Customer" ? "success" : "secondary"}>
-                          {a.status}
-                        </Badge>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {fmtCurrency(a.accountValue)}
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {fmtCurrency(a.totalArr)}
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <Button variant="outline" size="sm" className="h-7 gap-1 px-2" asChild>
-                          <a href={sfUrl} target="_blank" rel="noopener noreferrer">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/images/salesforce-logo.svg" alt="Salesforce" className="h-5 w-auto" />
-                            <ExternalLink className="size-3" />
-                          </a>
-                        </Button>
-                        {stripeUrl ? (
-                          <Button variant="outline" size="sm" className="h-7 gap-1 px-2" asChild>
-                            <a href={stripeUrl} target="_blank" rel="noopener noreferrer">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src="/images/stripe-logo.svg" alt="Stripe" className="h-5 w-auto" />
-                              <ExternalLink className="size-3" />
-                            </a>
-                          </Button>
-                        ) : (
-                          <Button variant="ghost" size="sm" className="h-7 px-2 opacity-30" disabled>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src="/images/stripe-logo.svg" alt="Stripe" className="h-5 w-auto opacity-30" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+            return (
+              <Link
+                key={a.id}
+                href={`/customers/${a.id}`}
+                className="flex items-center gap-4 p-4 hover:bg-muted/30 transition-colors cursor-pointer group"
+              >
+                {/* Status Icon */}
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${a.status === "Active" || a.status === "Active Customer" ? "bg-success/10" : "bg-muted"}`}>
+                  <span className="text-xs font-semibold text-muted-foreground">
+                    {a.name.slice(0, 2).toUpperCase()}
+                  </span>
+                </div>
+
+                {/* Account Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="font-medium text-foreground truncate">{a.name}</span>
+                    {a.status ? (
+                      <Badge variant={a.status === "Active" || a.status === "Active Customer" ? "success" : "secondary"} className="shrink-0">
+                        {a.status}
+                      </Badge>
+                    ) : null}
+                  </div>
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className={a.ownerName ? "text-foreground" : "text-muted-foreground"}>{a.ownerName ?? "No owner"}</span>
+                    <span className="text-muted-foreground opacity-40">&middot;</span>
+                    <span className={a.csmName ? "text-foreground" : "text-muted-foreground"}>{a.csmName ?? "No CSM"}</span>
+                    <span className="text-muted-foreground opacity-40">&middot;</span>
+                    <span className={a.dateOfFirstClosedWon ? "text-foreground" : "text-muted-foreground"}>{fmtDate(a.dateOfFirstClosedWon)}</span>
+                  </div>
+                </div>
+
+                {/* Meta Info */}
+                <div className="flex items-center gap-6 text-sm shrink-0">
+                  <div className="text-right">
+                    <div className="font-semibold font-mono tabular-nums">{fmtCurrency(a.accountValue)}</div>
+                    <div className={`text-xs font-mono font-medium tabular-nums ${a.totalArr ? "text-foreground" : "text-muted-foreground"}`}>{fmtCurrency(a.totalArr)} ARR</div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button variant="outline" size="sm" className="h-7 gap-1 px-2" asChild onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                      <a href={sfUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/images/salesforce-logo.svg" alt="Salesforce" className="h-5 w-auto" />
+                        <ExternalLink className="size-3" />
+                      </a>
+                    </Button>
+                    {stripeUrl ? (
+                      <Button variant="outline" size="sm" className="h-7 gap-1 px-2" asChild onClick={(e: React.MouseEvent) => e.stopPropagation()}>
+                        <a href={stripeUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src="/images/stripe-logo.svg" alt="Stripe" className="h-5 w-auto" />
+                          <ExternalLink className="size-3" />
+                        </a>
+                      </Button>
+                    ) : (
+                      <Button variant="ghost" size="sm" className="h-7 px-2 opacity-30" disabled>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src="/images/stripe-logo.svg" alt="Stripe" className="h-5 w-auto opacity-30" />
+                      </Button>
+                    )}
+                  </div>
+                  <ChevronRight className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                </div>
+              </Link>
+            );
+          })
         )}
-      </CardContent>
+      </div>
     </Card>
   );
 }
+

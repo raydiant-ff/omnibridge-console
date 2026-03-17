@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import {
-  ArrowLeft,
   ExternalLink,
   CheckCircle2,
   XCircle,
@@ -10,10 +9,10 @@ import {
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import { formatCurrency, formatDateTime, formatDate, quoteStatusVariant } from "@/lib/format";
 import type { QuoteDetail, AuditTimelineEntry } from "@/lib/queries/quotes";
+import { Breadcrumb, PageHeader } from "@/components/workspace";
 
 interface Props {
   quote: QuoteDetail;
@@ -38,25 +37,22 @@ const ACTION_COLORS: Record<string, string> = {
 export function QuoteDetailView({ quote, timeline }: Props) {
   return (
     <>
-      <div className="flex items-center gap-4">
-        <Button variant="ghost" size="sm" asChild>
-          <Link href="/quotes">
-            <ArrowLeft className="mr-1 size-4" />
-            Back
-          </Link>
-        </Button>
-        <div className="flex flex-col">
-          <h1 className="text-xl font-bold tracking-tight">
-            Quote — {quote.customerName}
-          </h1>
-          <span className="text-sm text-muted-foreground">
-            {quote.stripeQuoteNumber ?? quote.stripeQuoteId}
-          </span>
-        </div>
-        <Badge variant={quoteStatusVariant(quote.status)} className="ml-auto">
-          {quote.status}
-        </Badge>
-      </div>
+      <Breadcrumb
+        items={[
+          { label: "Quotes", href: "/quotes" },
+          { label: quote.customerName },
+        ]}
+      />
+
+      <PageHeader
+        title={`Quote \u2014 ${quote.customerName}`}
+        description={quote.stripeQuoteNumber ?? quote.stripeQuoteId}
+        badge={
+          <Badge variant={quoteStatusVariant(quote.status)}>
+            {quote.status}
+          </Badge>
+        }
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <CrossSystemPanel quote={quote} />
@@ -74,7 +70,7 @@ function CrossSystemPanel({ quote }: { quote: QuoteDetail }) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+        <CardTitle className="text-base font-semibold">
           Cross-System IDs
         </CardTitle>
       </CardHeader>
@@ -308,7 +304,7 @@ function ValidationPanel({ quote }: { quote: QuoteDetail }) {
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+          <CardTitle className="text-base font-semibold">
             Validation Checks
           </CardTitle>
           <div className="flex items-center gap-2 text-xs">
@@ -385,7 +381,7 @@ function LineItemsPanel({
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+        <CardTitle className="text-base font-semibold">
           Line Items
         </CardTitle>
       </CardHeader>
@@ -479,7 +475,7 @@ function LifecycleTimeline({ timeline }: { timeline: AuditTimelineEntry[] }) {
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
+        <CardTitle className="text-base font-semibold">
           Lifecycle Timeline
         </CardTitle>
       </CardHeader>

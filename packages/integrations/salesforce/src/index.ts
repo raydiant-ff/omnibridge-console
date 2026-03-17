@@ -132,12 +132,18 @@ export async function soql<T = Record<string, unknown>>(query: string): Promise<
   return records;
 }
 
-export function escapeSoql(value: string): string {
-  return value
-    .replace(/\\/g, "\\\\")
-    .replace(/'/g, "\\'")
-    .replace(/%/g, "\\%")
-    .replace(/_/g, "\\_");
+/**
+ * Escape a string for use in SOQL.
+ *
+ * By default escapes only backslash and single-quote — safe for `=` comparisons.
+ * Pass `like: true` to also escape `%` and `_` wildcards for `LIKE` clauses.
+ */
+export function escapeSoql(value: string, opts?: { like?: boolean }): string {
+  let out = value.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+  if (opts?.like) {
+    out = out.replace(/%/g, "\\%").replace(/_/g, "\\_");
+  }
+  return out;
 }
 
 export async function getAccount(accountId: string) {
@@ -149,7 +155,7 @@ export async function getAccount(accountId: string) {
 
 export async function searchAccounts(term: string) {
   return soql(
-    `SELECT Id, Name, Website, Industry FROM Account WHERE Name LIKE '%${escapeSoql(term)}%' ORDER BY Name LIMIT 25`,
+    `SELECT Id, Name, Website, Industry FROM Account WHERE Name LIKE '%${escapeSoql(term, { like: true })}%' ORDER BY Name LIMIT 25`,
   );
 }
 

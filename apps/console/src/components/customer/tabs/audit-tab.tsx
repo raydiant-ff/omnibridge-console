@@ -17,7 +17,7 @@ interface Props {
 export function AuditTab({ logs }: Props) {
   if (logs.length === 0) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-12 text-center">
+      <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed py-12 text-center">
         <p className="text-sm font-medium">No audit logs</p>
         <p className="text-sm text-muted-foreground">
           Actions performed on this customer will be recorded here.
@@ -27,7 +27,7 @@ export function AuditTab({ logs }: Props) {
   }
 
   return (
-    <div className="rounded-lg border">
+    <div className="rounded-xl border">
       <Table>
         <TableHeader>
           <TableRow>

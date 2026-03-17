@@ -1,15 +1,14 @@
 import { RotateCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/workspace/page-header";
 
 export default function RenewalPage() {
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Renewal</h1>
-        <p className="text-sm text-muted-foreground">
-          Renew expiring subscriptions with updated terms.
-        </p>
-      </div>
+      <PageHeader
+        title="Renewal"
+        description="Renew expiring subscriptions with updated terms."
+      />
 
       <Card>
         <CardContent className="flex flex-col items-center gap-4 py-16">

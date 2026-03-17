@@ -17,8 +17,8 @@ Repo conventions:
 - pnpm monorepo with Turborepo; packages are in packages/, app is in apps/console/
 - Server actions live in apps/console/src/lib/actions/
 - Data queries live in apps/console/src/lib/queries/
-- Integrations live in packages/integrations/{stripe,salesforce,pandadoc}/
-- Feature flags are in apps/console/src/lib/feature-flags.ts (useMockStripe, useMockSalesforce, useMockPandaDoc)
+- Integrations live in packages/integrations/{stripe,salesforce,docusign}/
+- Feature flags are in apps/console/src/lib/feature-flags.ts (useMockStripe, useMockSalesforce, useMockDocuSign)
 - SOQL queries must use escapeSoql() for user inputs
 - AuditLog entries from webhooks/system use actorUserId: null
 - Validation commands: `pnpm lint`, `pnpm build`, `pnpm db:generate`

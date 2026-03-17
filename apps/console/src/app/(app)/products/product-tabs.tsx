@@ -2,14 +2,7 @@
 
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -20,7 +13,18 @@ import {
 } from "@/components/ui/select";
 import { useState, useMemo, useCallback, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Loader2, Power } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronRight,
+  Loader2,
+  Power,
+  Package,
+  CheckCircle2,
+  XCircle,
+  Clock,
+  MoreHorizontal,
+  Link2,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import type { StripeProduct, StripeProductPrice } from "@/lib/queries/stripe-products";
@@ -32,7 +36,7 @@ import type { ProductLogEntry } from "@/lib/queries/product-logs";
 type StatusFilter = "all" | "active" | "inactive";
 
 function formatStripeCurrency(amount: number | null, currency: string): string {
-  if (amount === null) return "—";
+  if (amount === null) return "---";
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: currency.toUpperCase(),
@@ -51,6 +55,27 @@ function formatSfdcCurrency(amount: number): string {
 function formatInterval(interval: string | null, type: "recurring" | "one_time"): string {
   if (type === "one_time") return "one-time";
   return interval ? `/ ${interval}` : "";
+}
+
+function formatTimestamp(ts: number): string {
+  return new Date(ts * 1000).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function timeAgoFromTs(ts: number): string {
+  const now = Date.now();
+  const diffMs = now - ts * 1000;
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 30) return `${diffDays}d ago`;
+  return formatTimestamp(ts);
 }
 
 interface Props {
@@ -199,7 +224,7 @@ export function ProductCatalogTabs({ stripeProducts, sfdcProducts, isAdmin = fal
       <TabsContent value="salesforce" className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
           <Input
-            placeholder="Filter by name, code, family, or Stripe ID…"
+            placeholder="Filter by name, code, family, or Stripe ID..."
             value={sfdcFilter}
             onChange={(e) => setSfdcFilter(e.target.value)}
             className="max-w-sm"
@@ -229,32 +254,22 @@ export function ProductCatalogTabs({ stripeProducts, sfdcProducts, isAdmin = fal
         {filteredSfdc.length === 0 ? (
           <EmptyState message="No Salesforce products match your filters." />
         ) : (
-          <div className="overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="min-w-[200px]">Product</TableHead>
-                  <TableHead className="min-w-[100px]">Code</TableHead>
-                  <TableHead>Family</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="min-w-[160px]">Stripe Product</TableHead>
-                  <TableHead className="min-w-[140px]">Pricebook Entries</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          <Card>
+            <CardContent className="p-0">
+              <div className="divide-y">
                 {filteredSfdc.map((p) => (
                   <SfdcRow key={p.id} product={p} stripeMap={stripeById} />
                 ))}
-              </TableBody>
-            </Table>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </TabsContent>
 
       <TabsContent value="stripe" className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
           <Input
-            placeholder="Filter by name or ID…"
+            placeholder="Filter by name or ID..."
             value={stripeFilter}
             onChange={(e) => setStripeFilter(e.target.value)}
             className="max-w-sm"
@@ -295,32 +310,24 @@ export function ProductCatalogTabs({ stripeProducts, sfdcProducts, isAdmin = fal
         {filteredStripe.length === 0 ? (
           <EmptyState message="No Stripe products match your filters." />
         ) : (
-          <div className="overflow-x-auto rounded-lg border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  {isAdmin && (
-                    <TableHead className="w-10 px-2">
-                      <Checkbox
-                        checked={
-                          filteredStripe.filter((p) => p.active).length > 0 &&
-                          filteredStripe.filter((p) => p.active).every((p) => selected.has(p.id))
-                        }
-                        onCheckedChange={toggleSelectAll}
-                        aria-label="Select all"
-                      />
-                    </TableHead>
-                  )}
-                  <TableHead className="w-8"></TableHead>
-                  <TableHead className="min-w-[200px]">Product</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Created</TableHead>
-                  <TableHead>Updated</TableHead>
-                  <TableHead>Salesforce Product</TableHead>
-                  <TableHead>Product ID</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+          <Card>
+            <CardHeader className="pb-4">
+              {isAdmin && (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    checked={
+                      filteredStripe.filter((p) => p.active).length > 0 &&
+                      filteredStripe.filter((p) => p.active).every((p) => selected.has(p.id))
+                    }
+                    onCheckedChange={toggleSelectAll}
+                    aria-label="Select all"
+                  />
+                  <span className="text-xs text-muted-foreground">Select all active</span>
+                </div>
+              )}
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="divide-y">
                 {filteredStripe.map((p) => (
                   <StripeRow
                     key={p.id}
@@ -330,9 +337,9 @@ export function ProductCatalogTabs({ stripeProducts, sfdcProducts, isAdmin = fal
                     onToggleSelect={toggleSelect}
                   />
                 ))}
-              </TableBody>
-            </Table>
-          </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
       </TabsContent>
 
@@ -387,24 +394,15 @@ function ActivityLogTab({ logs }: { logs: ProductLogEntry[] }) {
       {filtered.length === 0 ? (
         <EmptyState message="No activity log entries match your filters." />
       ) : (
-        <div className="overflow-x-auto rounded-lg border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead className="min-w-[150px]">Timestamp</TableHead>
-                <TableHead>Action</TableHead>
-                <TableHead className="min-w-[200px]">Product</TableHead>
-                <TableHead>Product ID</TableHead>
-                <TableHead>Actor</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+        <Card>
+          <CardContent className="p-0">
+            <div className="divide-y">
               {filtered.map((log) => (
                 <LogRow key={log.id} log={log} />
               ))}
-            </TableBody>
-          </Table>
-        </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </>
   );
@@ -418,6 +416,14 @@ const ACTION_VARIANTS: Record<string, "default" | "secondary" | "outline" | "des
   updated: "secondary",
 };
 
+const ACTION_ICONS: Record<string, typeof CheckCircle2> = {
+  created: CheckCircle2,
+  activated: CheckCircle2,
+  deactivated: XCircle,
+  deleted: XCircle,
+  updated: Clock,
+};
+
 function LogRow({ log }: { log: ProductLogEntry }) {
   const ts = new Date(log.createdAt);
   const formatted = ts.toLocaleString("en-US", {
@@ -428,30 +434,37 @@ function LogRow({ log }: { log: ProductLogEntry }) {
     minute: "2-digit",
   });
 
-  const actor = log.actorLabel;
+  const Icon = ACTION_ICONS[log.action] ?? Clock;
+  const iconColor = log.action === "deactivated" || log.action === "deleted"
+    ? "text-red-400"
+    : log.action === "created" || log.action === "activated"
+      ? "text-emerald-500"
+      : "text-muted-foreground";
 
   return (
-    <TableRow>
-      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+    <div className="flex items-center gap-4 px-6 py-4 transition-colors hover:bg-muted/50">
+      <div className="shrink-0">
+        <Icon className={`size-5 ${iconColor}`} />
+      </div>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-medium">{log.productName ?? "---"}</span>
+          <Badge variant={ACTION_VARIANTS[log.action] ?? "secondary"} className="text-[10px] capitalize">
+            {log.action}
+          </Badge>
+          <Badge variant="outline" className="font-mono text-[10px]">
+            {log.productId}
+          </Badge>
+        </div>
+        <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
+          <span>{log.actorLabel}</span>
+        </div>
+      </div>
+      <div className="shrink-0 text-xs text-muted-foreground whitespace-nowrap">
         {formatted}
-      </TableCell>
-      <TableCell>
-        <Badge variant={ACTION_VARIANTS[log.action] ?? "secondary"} className="text-xs capitalize">
-          {log.action}
-        </Badge>
-      </TableCell>
-      <TableCell>
-        <span className="text-sm font-medium">{log.productName ?? "—"}</span>
-      </TableCell>
-      <TableCell>
-        <Badge variant="outline" className="font-mono text-xs">
-          {log.productId}
-        </Badge>
-      </TableCell>
-      <TableCell className="text-xs text-muted-foreground">
-        {actor}
-      </TableCell>
-    </TableRow>
+      </div>
+      <MoreHorizontal className="size-4 text-muted-foreground shrink-0" />
+    </div>
   );
 }
 
@@ -516,61 +529,56 @@ function SfdcRow({
     : null;
 
   return (
-    <TableRow className={product.active ? "" : "opacity-60"}>
-      <TableCell>
-        <div className="flex flex-col gap-0.5 max-w-[300px]">
-          <span className="font-medium truncate">{product.name}</span>
+    <div className={`flex items-center gap-4 px-6 py-4 transition-colors hover:bg-muted/50 ${product.active ? "" : "opacity-60"}`}>
+      {/* Status icon */}
+      <div className="shrink-0">
+        <Package className={`size-5 ${product.active ? "text-emerald-500" : "text-muted-foreground"}`} />
+      </div>
+
+      {/* Primary info */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-medium">{product.name}</span>
+          <Badge variant="outline" className="font-mono text-[10px]">
+            {product.productCode ?? "---"}
+          </Badge>
+          {product.family && (
+            <Badge variant="secondary" className="text-[10px]">
+              {product.family}
+            </Badge>
+          )}
+          <Badge variant={product.active ? "default" : "secondary"} className="text-[10px]">
+            {product.active ? "Active" : "Inactive"}
+          </Badge>
+        </div>
+        <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground flex-wrap">
           {product.description && (
-            <span className="text-xs text-muted-foreground" title={product.description}>
-              {product.description.length > product.name.length
-                ? product.description.slice(0, product.name.length) + "…"
+            <span title={product.description}>
+              {product.description.length > 60
+                ? product.description.slice(0, 60) + "..."
                 : product.description}
             </span>
           )}
+          {product.stripeProductId && (
+            <>
+              {product.description && <span>&middot;</span>}
+              <Link2 className="size-3" />
+              <span className="font-mono">{product.stripeProductId}</span>
+              {stripeProduct && <span>({stripeProduct.name})</span>}
+              {product.stripeProductId && !stripeProduct && (
+                <span className="text-destructive">Not found in Stripe</span>
+              )}
+            </>
+          )}
         </div>
-      </TableCell>
-      <TableCell>
-        <Badge variant="outline" className="font-mono text-xs">
-          {product.productCode ?? "—"}
-        </Badge>
-      </TableCell>
-      <TableCell>
-        {product.family ? (
-          <Badge variant="secondary">{product.family}</Badge>
-        ) : (
-          <span className="text-muted-foreground">—</span>
-        )}
-      </TableCell>
-      <TableCell>
-        <Badge variant={product.active ? "default" : "secondary"}>
-          {product.active ? "Active" : "Inactive"}
-        </Badge>
-      </TableCell>
-      <TableCell>
-        {product.stripeProductId ? (
-          <div className="flex flex-col gap-0.5">
-            <Badge variant="outline" className="font-mono text-xs w-fit">
-              {product.stripeProductId}
-            </Badge>
-            {stripeProduct && (
-              <span className="text-xs text-muted-foreground">
-                {stripeProduct.name}
-              </span>
-            )}
-            {product.stripeProductId && !stripeProduct && (
-              <span className="text-xs text-destructive">
-                Not found in Stripe
-              </span>
-            )}
-          </div>
-        ) : (
-          <span className="text-muted-foreground text-xs">Not linked</span>
-        )}
-      </TableCell>
-      <TableCell>
-        <PricebookDropdown entries={product.pricebookEntries} />
-      </TableCell>
-    </TableRow>
+      </div>
+
+      {/* Right metadata */}
+      <div className="flex items-center gap-3 shrink-0">
+        <PricebookSummary entries={product.pricebookEntries} />
+        <MoreHorizontal className="size-4 text-muted-foreground" />
+      </div>
+    </div>
   );
 }
 
@@ -592,14 +600,6 @@ function getSfProductId(metadata: Record<string, string>): string | null {
     }
   }
   return null;
-}
-
-function formatTimestamp(ts: number): string {
-  return new Date(ts * 1000).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
 }
 
 function StripeRow({
@@ -636,132 +636,125 @@ function StripeRow({
 
   return (
     <>
-      <TableRow className={product.active ? "" : "opacity-60"}>
+      <div className={`flex items-center gap-4 px-6 py-4 transition-colors hover:bg-muted/50 group ${product.active ? "" : "opacity-60"}`}>
         {isAdmin && (
-          <TableCell className="w-10 px-2">
+          <div className="shrink-0" onClick={(e) => e.stopPropagation()}>
             <Checkbox
               checked={isSelected}
               onCheckedChange={() => onToggleSelect(product.id)}
               disabled={!product.active}
               aria-label={`Select ${product.name}`}
             />
-          </TableCell>
+          </div>
         )}
-        <TableCell className="w-8 px-2 cursor-pointer" onClick={toggle}>
-          <ChevronRight
-            className={`size-4 text-muted-foreground transition-transform ${expanded ? "rotate-90" : ""}`}
-          />
-        </TableCell>
-        <TableCell>
-          <div className="flex flex-col gap-0.5">
+
+        {/* Expand toggle */}
+        <button type="button" onClick={toggle} className="shrink-0">
+          {expanded ? (
+            <ChevronDown className="size-5 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="size-5 text-muted-foreground" />
+          )}
+        </button>
+
+        {/* Primary info */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
             <a
               href={`https://dashboard.stripe.com/products/${product.id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="font-medium text-primary hover:underline"
+              className="text-sm font-medium text-primary hover:underline"
             >
               {product.name}
             </a>
+            <Badge variant={product.active ? "default" : "secondary"} className="text-[10px]">
+              {product.active ? "Active" : "Inactive"}
+            </Badge>
+            {sfProductId && (
+              <Badge variant="outline" className="font-mono text-[10px]">
+                SF: {sfProductId}
+              </Badge>
+            )}
+          </div>
+          <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
             {product.description && (
-              <span className="text-xs text-muted-foreground" title={product.description}>
-                {product.description.length > product.name.length
-                  ? product.description.slice(0, product.name.length) + "…"
+              <span title={product.description}>
+                {product.description.length > 60
+                  ? product.description.slice(0, 60) + "..."
                   : product.description}
               </span>
             )}
+            {product.description && <span>&middot;</span>}
+            <span className="font-mono">{product.id}</span>
           </div>
-        </TableCell>
-        <TableCell>
-          <Badge variant={product.active ? "default" : "secondary"}>
-            {product.active ? "Active" : "Inactive"}
-          </Badge>
-        </TableCell>
-        <TableCell className="whitespace-nowrap text-muted-foreground text-xs">
-          {formatTimestamp(product.created)}
-        </TableCell>
-        <TableCell className="whitespace-nowrap text-muted-foreground text-xs">
-          {formatTimestamp(product.updated)}
-        </TableCell>
-        <TableCell>
-          {sfProductId ? (
-            <Badge variant="outline" className="font-mono text-xs">
-              {sfProductId}
-            </Badge>
-          ) : (
-            <span className="text-muted-foreground text-xs">—</span>
-          )}
-        </TableCell>
-        <TableCell>
-          <Badge variant="outline" className="font-mono text-xs">
-            {product.id}
-          </Badge>
-        </TableCell>
-      </TableRow>
+        </div>
+
+        {/* Right metadata */}
+        <div className="flex items-center gap-4 shrink-0">
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            {formatTimestamp(product.created)}
+          </span>
+          <span className="text-xs text-muted-foreground whitespace-nowrap">
+            {timeAgoFromTs(product.updated)}
+          </span>
+          <MoreHorizontal className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
+      </div>
+
+      {/* Expanded prices panel */}
       {expanded && (
-        <TableRow className="bg-muted/30 hover:bg-muted/30">
-          {isAdmin && <TableCell />}
-          <TableCell />
-          <TableCell colSpan={6} className="py-3">
+        <div className="bg-muted/30 px-6 py-4 border-t border-dashed">
+          <div className="ml-12">
             {loading ? (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <Loader2 className="size-3.5 animate-spin" />
-                Loading prices…
+                Loading prices...
               </div>
             ) : prices && prices.length > 0 ? (
-              <div className="flex flex-col gap-1">
-                <span className="text-xs font-medium text-muted-foreground mb-1">
+              <div className="flex flex-col gap-2">
+                <span className="text-xs font-medium text-muted-foreground">
                   {prices.length} price{prices.length > 1 ? "s" : ""}
                 </span>
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="text-muted-foreground">
-                      <th className="text-left font-medium pr-4 pb-1">Price ID</th>
-                      <th className="text-left font-medium pr-4 pb-1">Name</th>
-                      <th className="text-right font-medium pr-4 pb-1">Amount</th>
-                      <th className="text-left font-medium pr-4 pb-1">Interval</th>
-                      <th className="text-left font-medium pb-1">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {prices.map((p) => (
-                      <tr key={p.id}>
-                        <td className="font-mono pr-4 py-0.5">{p.id}</td>
-                        <td className="pr-4 py-0.5">{p.nickname ?? "—"}</td>
-                        <td className="text-right font-mono pr-4 py-0.5">
-                          {formatStripeCurrency(p.unitAmount, p.currency)}
-                        </td>
-                        <td className="pr-4 py-0.5">{formatInterval(p.interval, p.type)}</td>
-                        <td className="py-0.5">
-                          <Badge variant={p.active ? "default" : "secondary"} className="text-[10px] px-1.5 py-0">
-                            {p.active ? "Active" : "Inactive"}
-                          </Badge>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                <div className="divide-y">
+                  {prices.map((p) => (
+                    <div key={p.id} className="flex items-center gap-4 py-2">
+                      <span className="font-mono text-xs text-muted-foreground">{p.id}</span>
+                      <span className="text-xs">{p.nickname ?? "---"}</span>
+                      <span className="text-xs font-mono ml-auto">
+                        {formatStripeCurrency(p.unitAmount, p.currency)}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {formatInterval(p.interval, p.type)}
+                      </span>
+                      <Badge variant={p.active ? "default" : "secondary"} className="text-[10px]">
+                        {p.active ? "Active" : "Inactive"}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : (
               <span className="text-sm text-muted-foreground">No prices found.</span>
             )}
-          </TableCell>
-        </TableRow>
+          </div>
+        </div>
       )}
     </>
   );
 }
 
-function PricebookDropdown({ entries }: { entries: SfdcProduct["pricebookEntries"] }) {
+function PricebookSummary({ entries }: { entries: SfdcProduct["pricebookEntries"] }) {
   if (entries.length === 0) {
-    return <span className="text-muted-foreground">No entries</span>;
+    return <span className="text-xs text-muted-foreground">No entries</span>;
   }
 
   if (entries.length === 1) {
     const e = entries[0];
     return (
-      <span className="text-sm">
-        <span className="font-mono text-xs">{formatSfdcCurrency(e.unitPrice)}</span>{" "}
-        <span className="text-muted-foreground text-xs">{e.pricebookName}</span>
+      <span className="text-xs">
+        <span className="font-mono">{formatSfdcCurrency(e.unitPrice)}</span>{" "}
+        <span className="text-muted-foreground">{e.pricebookName}</span>
       </span>
     );
   }
@@ -774,7 +767,7 @@ function PricebookDropdown({ entries }: { entries: SfdcProduct["pricebookEntries
       <SelectContent>
         {entries.map((e) => (
           <SelectItem key={e.id} value={e.id} className="text-xs">
-            {formatSfdcCurrency(e.unitPrice)} — {e.pricebookName}
+            {formatSfdcCurrency(e.unitPrice)} --- {e.pricebookName}
           </SelectItem>
         ))}
       </SelectContent>
@@ -784,7 +777,7 @@ function PricebookDropdown({ entries }: { entries: SfdcProduct["pricebookEntries
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-12 text-center">
+    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed py-12 text-center">
       <p className="text-sm font-medium">{message}</p>
       <p className="text-sm text-muted-foreground">Try adjusting your filters.</p>
     </div>

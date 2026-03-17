@@ -30,6 +30,35 @@ enum WorkItemStatus {
   cancelled
 }
 
+// WorkItemType — enforced type enum for WorkItem.
+// Before this was a free-form String; all new work items must use this enum.
+// Existing rows with unmapped values must be migrated before column type change.
+// Run: SELECT DISTINCT type FROM work_items; to audit existing values first.
+enum WorkItemType {
+  renewal_follow_up
+  quote_review
+  billing_issue
+  customer_task
+  ops_exception
+}
+
+// RenewalStatus — workflow state for Renewal product entity.
+enum RenewalStatus {
+  not_started
+  in_progress
+  quote_sent
+  won
+  lost
+  churned
+}
+
+// SignalSeverity — severity classification for AccountSignal.
+enum SignalSeverity {
+  info
+  warning
+  critical
+}
+
 // ---------------------------------------------------------------------------
 // NextAuth models (required by @auth/prisma-adapter)
 // ---------------------------------------------------------------------------
@@ -93,36 +122,52 @@ model User {
 
   accounts          Account[]
   sessions          Session[]
-  createdWorkItems  WorkItem[]  @relation("CreatedBy")
-  assignedWorkItems WorkItem[]  @relation("AssignedTo")
+  createdWorkItems  WorkItem[]    @relation("CreatedBy")
+  assignedWorkItems WorkItem[]    @relation("AssignedTo")
   auditLogs         AuditLog[]
   quotes            QuoteRecord[]
+  ownedRenewals     Renewal[]     @relation("RenewalOwner")
+  authoredNotes     CustomerNote[] @relation("NoteAuthor")
 
   @@index([role])
   @@map("users")
 }
 
+// LAYER: identity — cross-system mapping only.
+// This is NOT a customer domain entity. It maps sfAccountId ↔ stripeCustomerId.
+// Do NOT build customer workspace screens directly on this model.
+// Use CustomerView projection from lib/projections/ for product screens.
+// Product entities (Renewal, CustomerNote, AccountSignal) FK to this as the stable identifier.
 model CustomerIndex {
   id               String   @id @default(cuid())
   sfAccountId      String?  @unique @map("sf_account_id")
-  sfAccountName    String?  @map("sf_account_name")
+  sfAccountName    String?  @map("sf_account_name") // snapshot — SfAccount.name is authoritative
   stripeCustomerId String?  @unique @map("stripe_customer_id")
   domain           String?
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
-  workItems WorkItem[]
-  auditLogs AuditLog[]
+  workItems     WorkItem[]
+  auditLogs     AuditLog[]
+  renewals      Renewal[]
+  notes         CustomerNote[]
+  signals       AccountSignal[]
 
   @@index([domain])
   @@index([sfAccountName])
   @@map("customer_index")
 }
 
+// LAYER: product
+// WorkItem.type is a WorkItemType enum going forward.
+// The column remains String in the DB until existing rows are audited and migrated.
+// Do not add new work item types without updating the WorkItemType enum above.
+// Expected payload shape per type is documented in docs/schema-cleanup-candidates.md.
 model WorkItem {
   id           String         @id @default(cuid())
-  type         String
+  type         WorkItemType
   status       WorkItemStatus @default(pending)
+  // payloadJson shape is type-dependent — see WorkItemType enum for allowed types
   payloadJson  Json?          @map("payload_json")
   createdById  String         @map("created_by")
   assignedToId String?        @map("assigned_to")
@@ -194,55 +239,81 @@ model IdempotencyKey {
   @@map("idempotency_keys")
 }
 
+// LAYER: transitional — multiple concerns in one model.
+// Do NOT add more fields here. Future extractions:
+//   - DocuSign fields → DocuSignRecord model (see schema-cleanup-candidates.md)
+//   - Address fields → structured or shared Address model
+// Concern groups are annotated inline below.
 model QuoteRecord {
   id               String    @id @default(cuid())
+
+  // --- Quote identity ---
   stripeQuoteId    String    @unique @map("stripe_quote_id")
+  stripeQuoteNumber String?  @map("stripe_quote_number")
+  sfQuoteId        String?   @map("sf_quote_id")
+  sfQuoteNumber    String?   @map("sf_quote_number")
+  status           String    @default("draft")
+  quoteType        String    @default("new") @map("quote_type") // new | expansion | renewal | amendment
+  acceptToken      String    @unique @map("accept_token")
+  acceptedAt       DateTime? @map("accepted_at")
+  expiresAt        DateTime? @map("expires_at")
+  pdfUrl           String?   @map("pdf_url")
+  dryRun           Boolean   @default(false) @map("dry_run")
+
+  // --- Customer identity (WARNING: customerId is a bare string — no FK enforced yet)
+  // See docs/schema-cleanup-candidates.md Priority 2 before adding @relation here.
+  // Use stripeCustomerId and sfAccountId for customer navigation instead.
   customerId       String    @map("customer_id")
-  customerName     String    @map("customer_name")
+  customerName     String    @map("customer_name") // snapshot at quote time
   stripeCustomerId String    @map("stripe_customer_id")
   sfAccountId      String?   @map("sf_account_id")
   opportunityId    String?   @map("opportunity_id")
-  sfQuoteId        String?   @map("sf_quote_id")
+
+  // --- Commercial / billing terms ---
   collectionMethod String    @map("collection_method")
   paymentTerms     String?   @map("payment_terms")
   daysUntilDue     Int?      @map("days_until_due")
-  status           String    @default("draft")
-  acceptToken      String    @unique @map("accept_token")
-  acceptedAt       DateTime? @map("accepted_at")
-  totalAmount      Int?      @map("total_amount")
+  totalAmount      Int?      @map("total_amount") // cents
   currency         String    @default("usd")
-  expiresAt        DateTime? @map("expires_at")
-  pdfUrl           String?   @map("pdf_url")
-  lineItemsJson    Json?     @map("line_items_json")
-  pandadocDocId       String?   @map("pandadoc_document_id")
-  docusignEnvelopeId  String?   @map("docusign_envelope_id")
-  signerName          String?   @map("signer_name")
-  signerEmail      String?   @map("signer_email")
   contractTerm     String?   @map("contract_term")
   billingFrequency String?   @map("billing_frequency")
   contractEndDate  DateTime? @map("contract_end_date")
-  stripeScheduleId     String?   @map("stripe_schedule_id")
-  stripeSubscriptionId String?   @map("stripe_subscription_id")
-  stripeSubItemIds     Json?     @map("stripe_sub_item_ids")
-  stripeQuoteNumber    String?   @map("stripe_quote_number")
-  sfQuoteNumber        String?   @map("sf_quote_number")
-  sfContractId         String?   @map("sf_contract_id")
-  sfSubscriptionIds    Json?     @map("sf_subscription_ids")
-  sfQuoteLineIds       Json?     @map("sf_quote_line_ids")
-  billToContactId      String?   @map("bill_to_contact_id")
-  effectiveDate        DateTime? @map("effective_date")
-  billingAddressJson   Json?     @map("billing_address_json")
-  shippingAddressJson  Json?     @map("shipping_address_json")
-  quoteType            String    @default("new") @map("quote_type")
-  parentSubscriptionId String?   @map("parent_subscription_id")
-  parentScheduleId     String?   @map("parent_schedule_id")
-  effectiveTiming      String?   @map("effective_timing")
-  prorationAmountCents Int?      @map("proration_amount_cents")
-  existingItemsJson    Json?     @map("existing_items_json")
-  dryRun               Boolean   @default(false) @map("dry_run")
-  createdBy        String    @map("created_by")
-  createdAt        DateTime  @default(now()) @map("created_at")
-  updatedAt        DateTime  @updatedAt @map("updated_at")
+  effectiveDate    DateTime? @map("effective_date")
+  effectiveTiming  String?   @map("effective_timing")
+  prorationAmountCents Int?  @map("proration_amount_cents")
+
+  // --- Line items (JSON blobs — acceptable for now, structured later if query need arises) ---
+  lineItemsJson    Json?     @map("line_items_json")
+  existingItemsJson Json?    @map("existing_items_json")
+
+  // --- DocuSign e-signature (candidate for extraction to DocuSignRecord model) ---
+  docusignEnvelopeId String? @map("docusign_envelope_id")
+  signerName         String? @map("signer_name") // snapshot from SfContact at quote time
+  signerEmail        String? @map("signer_email")
+  billToContactId    String? @map("bill_to_contact_id") // SfContact.id
+
+  // --- Stripe downstream objects ---
+  stripeScheduleId     String? @map("stripe_schedule_id")
+  stripeSubscriptionId String? @map("stripe_subscription_id")
+  stripeSubItemIds     Json?   @map("stripe_sub_item_ids") // JSON array of si_xxx IDs
+
+  // --- Salesforce downstream objects ---
+  sfContractId      String? @map("sf_contract_id")
+  sfSubscriptionIds Json?   @map("sf_subscription_ids") // JSON array of SF SBQQ sub IDs
+  sfQuoteLineIds    Json?   @map("sf_quote_line_ids")
+
+  // --- CPQ / amendment metadata ---
+  parentSubscriptionId String? @map("parent_subscription_id")
+  parentScheduleId     String? @map("parent_schedule_id")
+
+  // --- Address (JSON blobs — candidate for structured extraction) ---
+  billingAddressJson  Json? @map("billing_address_json")
+  shippingAddressJson Json? @map("shipping_address_json")
+
+  // --- Audit ---
+  createdBy String   @map("created_by")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
 
   creator User @relation(fields: [createdBy], references: [id])
 
@@ -260,7 +331,334 @@ model QuoteRecord {
 }
 
 // ---------------------------------------------------------------------------
+// Sync infrastructure
+// ---------------------------------------------------------------------------
+
+model SyncJob {
+  id               String    @id @default(cuid())
+  jobType          String    @map("job_type")
+  status           String    @default("pending") // pending, running, completed, failed
+  cursor           String?
+  recordsProcessed Int       @default(0) @map("records_processed")
+  recordsCreated   Int       @default(0) @map("records_created")
+  recordsUpdated   Int       @default(0) @map("records_updated")
+  recordsErrored   Int       @default(0) @map("records_errored")
+  error            String?
+  startedAt        DateTime? @map("started_at")
+  completedAt      DateTime? @map("completed_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  @@index([jobType, status])
+  @@index([createdAt])
+  @@map("sync_jobs")
+}
+
+model SyncEvent {
+  id         String   @id @default(cuid())
+  source     String // 'stripe', 'salesforce', 'docusign'
+  eventType  String   @map("event_type")
+  externalId String?  @map("external_id")
+  objectType String?  @map("object_type")
+  objectId   String?  @map("object_id")
+  action     String? // 'created', 'updated', 'deleted', 'synced'
+  actorType  String?  @map("actor_type") // 'omni_user', 'stripe_dashboard', 'stripe_api', 'stripe_system', 'sf_user', 'system'
+  actorId    String?  @map("actor_id")   // Omni user ID, SF user ID, or null
+  actorName  String?  @map("actor_name") // human-readable: email or display name
+  success    Boolean  @default(true)
+  error      String?
+  payload    Json?
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@unique([source, externalId])
+  @@index([source, eventType])
+  @@index([objectType, objectId])
+  @@index([createdAt])
+  @@map("sync_events")
+}
+
+// ---------------------------------------------------------------------------
+// Stripe mirrors — customer, product, price
+// LAYER: mirror — read-only cache of Stripe objects.
+// Do NOT mutate from product code. Sync jobs write these.
+// Check syncedAt before displaying time-sensitive financial data.
+// ---------------------------------------------------------------------------
+
+model StripeCustomer {
+  id                   String    @id // cus_xxx
+  name                 String?
+  email                String?
+  phone                String?
+  description          String?
+  currency             String?
+  balance              Int       @default(0)
+  delinquent           Boolean   @default(false)
+  defaultPaymentMethod String?   @map("default_payment_method")
+  sfAccountId          String?   @map("sf_account_id")
+  metadata             Json?
+  raw                  Json?
+  stripeCreated        DateTime? @map("stripe_created")
+  syncedAt             DateTime  @default(now()) @map("synced_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  invoices       StripeInvoice[]
+  payments       StripePayment[]
+  paymentMethods StripePaymentMethod[]
+
+  @@index([email])
+  @@index([sfAccountId])
+  @@map("stripe_customers")
+}
+
+model StripeProduct {
+  id             String   @id // prod_xxx
+  name           String
+  description    String?
+  active         Boolean  @default(true)
+  defaultPriceId String?  @map("default_price_id")
+  sfProductId    String?  @map("sf_product_id")
+  metadata       Json?
+  raw            Json?
+  syncedAt       DateTime @default(now()) @map("synced_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  prices StripePrice[]
+
+  @@map("stripe_products")
+}
+
+model StripePrice {
+  id                     String   @id // price_xxx
+  productId              String   @map("product_id")
+  active                 Boolean  @default(true)
+  currency               String?
+  unitAmount             Int?     @map("unit_amount")
+  billingScheme          String?  @map("billing_scheme")
+  recurringInterval      String?  @map("recurring_interval")
+  recurringIntervalCount Int      @default(1) @map("recurring_interval_count")
+  type                   String?
+  nickname               String?
+  metadata               Json?
+  raw                    Json?
+  syncedAt               DateTime @default(now()) @map("synced_at")
+  createdAt              DateTime @default(now()) @map("created_at")
+  updatedAt              DateTime @updatedAt @map("updated_at")
+
+  product StripeProduct @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+  @@map("stripe_prices")
+}
+
+// ---------------------------------------------------------------------------
+// Salesforce mirrors
+// LAYER: mirror — read-only cache of Salesforce SObjects.
+// Do NOT mutate from product code. Sync jobs write these.
+// SfAccount: ALWAYS filter isStub=false in product queries (use SF_ACCOUNT_BASE_WHERE).
+// SfContract: NEVER read daysTillExpiry directly — compute from endDate.
+//             NEVER prefer stripeStatus for billing state — use StripeSubscription.status.
+// ---------------------------------------------------------------------------
+
+model SfAccount {
+  id                   String    @id // SF Account.Id (18-char)
+  name                 String
+  domain               String?
+  ownerId              String?   @map("owner_id")
+  ownerName            String?   @map("owner_name")
+  csmId                String?   @map("csm_id")
+  csmName              String?   @map("csm_name")
+  accountType          String?   @map("account_type")
+  status               String?
+  industry             String?
+  billingCity          String?   @map("billing_city")
+  billingState         String?   @map("billing_state")
+  billingCountry       String?   @map("billing_country")
+  annualRevenue        Float?    @map("annual_revenue")
+  dateOfFirstClosedWon DateTime? @map("date_of_first_closed_won")
+  stripeCustomerId     String?   @map("stripe_customer_id")
+  // Stub tracking: accounts created as FK placeholders during contract backfill
+  isStub               Boolean   @default(false) @map("is_stub")
+  stubReason           String?   @map("stub_reason") // e.g. "contract_backfill"
+  hydratedAt           DateTime? @map("hydrated_at") // set when full account data is synced
+  raw                  Json?
+  sfLastModified       DateTime? @map("sf_last_modified")
+  syncedAt             DateTime  @default(now()) @map("synced_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  @@index([stripeCustomerId])
+  @@index([ownerId])
+  @@index([status])
+  @@index([sfLastModified])
+  @@index([isStub])
+  @@map("sf_accounts")
+
+  contracts SfContract[]
+  contacts  SfContact[]
+  invoices  SfInvoice[]
+  payments  SfPayment[]
+}
+
+model SfContract {
+  id                      String    @id // SF Contract.Id (18-char)
+  accountId               String    @map("account_id")
+  accountName             String?   @map("account_name")
+  status                  String // Draft, Pending, Activated, canceled, Updated
+  statusCode              String?   @map("status_code") // SF StatusCode picklist category
+  startDate               DateTime? @map("start_date") @db.Date
+  endDate                 DateTime? @map("end_date") @db.Date
+  contractTerm            Int?      @map("contract_term") // months
+  contractNumber          String?   @map("contract_number")
+  description             String?
+  ownerId                 String?   @map("owner_id")
+  ownerName               String?   @map("owner_name")
+  // Stripe linkage
+  stripeSubscriptionId    String?   @map("stripe_subscription_id")
+  stripeCustomerId        String?   @map("stripe_customer_id")
+  stripeStatus            String?   @map("stripe_status")
+  stripeQuoteSfId         String?   @map("stripe_quote_sf_id")
+  stripeScheduleId        String?   @map("stripe_schedule_id")
+  collectionMethod        String?   @map("collection_method")
+  // Financial
+  mrr                     Float?
+  arr                     Float?
+  // CPQ
+  opportunityId           String?   @map("opportunity_id")
+  evergreen               Boolean   @default(false)
+  doNotRenew              Boolean   @default(false) @map("do_not_renew")
+  renewalTerm             Int?      @map("renewal_term")
+  // Lifecycle
+  cancellationDate        DateTime? @map("cancellation_date")
+  daysTillExpiry          Int?      @map("days_till_expiry")
+  activatedDate           DateTime? @map("activated_date")
+  customerSignedDate      DateTime? @map("customer_signed_date") @db.Date
+  // Sync metadata
+  raw                     Json?
+  sfLastModified          DateTime? @map("sf_last_modified")
+  syncedAt                DateTime  @default(now()) @map("synced_at")
+  createdAt               DateTime  @default(now()) @map("created_at")
+  updatedAt               DateTime  @updatedAt @map("updated_at")
+
+  lines   SfContractLine[]
+  account SfAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([status])
+  @@index([stripeSubscriptionId])
+  @@index([sfLastModified])
+  @@map("sf_contracts")
+}
+
+model SfContractLine {
+  id                  String    @id // SF SBQQ__Subscription__c.Id (18-char)
+  contractId          String    @map("contract_id")
+  accountId           String?   @map("account_id")
+  productId           String?   @map("product_id") // SF Product2.Id
+  productName         String?   @map("product_name")
+  quantity            Float?    @default(1)
+  listPrice           Float?    @map("list_price")
+  netPrice            Float?    @map("net_price")
+  startDate           DateTime? @map("start_date") @db.Date
+  endDate             DateTime? @map("end_date") @db.Date
+  status              String? // active, canceled, past_due, etc.
+  billingFrequency    String?   @map("billing_frequency")
+  // Stripe linkage
+  stripeSubItemId     String?   @map("stripe_sub_item_id")
+  stripePriceId       String?   @map("stripe_price_id")
+  stripeProductId     String?   @map("stripe_product_id")
+  stripeSubscriptionId String?  @map("stripe_subscription_id")
+  stripeStatus        String?   @map("stripe_status")
+  // Financial
+  mrr                 Float?
+  arr                 Float?
+  // Sync metadata
+  raw                 Json?
+  sfLastModified      DateTime? @map("sf_last_modified")
+  syncedAt            DateTime  @default(now()) @map("synced_at")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  contract SfContract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@index([stripeSubItemId])
+  @@index([stripeSubscriptionId])
+  @@index([sfLastModified])
+  @@map("sf_contract_lines")
+}
+
+// ---------------------------------------------------------------------------
+// Salesforce invoice mirror — minimal, active customers only.
+// LAYER: mirror — populated by sync jobs, not product code.
+// No native SF Invoice object; maps to whatever custom Invoice object exists
+// in the org (Invoice__c or equivalent). Sync implementation is a separate task.
+// ---------------------------------------------------------------------------
+
+model SfInvoice {
+  id             String    @id @default(cuid())
+  sfId           String    @unique @map("sf_id") // SF record ID (18-char)
+  sfAccountId    String    @map("sf_account_id")
+  invoiceNumber  String?   @map("invoice_number")
+  status         String?   // e.g. "Paid", "Outstanding", "Void"
+  invoiceDate    DateTime? @map("invoice_date") @db.Date
+  dueDate        DateTime? @map("due_date") @db.Date
+  totalAmount    Float?    @map("total_amount") // currency units (not cents)
+  currency       String?
+  externalUrl    String?   @map("external_url") // link to SF record
+  rawJson        Json?     @map("raw_json")
+  sfLastModified DateTime? @map("sf_last_modified")
+  syncedAt       DateTime  @default(now()) @map("synced_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  account SfAccount @relation(fields: [sfAccountId], references: [id], onDelete: Cascade)
+
+  @@index([sfAccountId])
+  @@index([status])
+  @@index([invoiceDate])
+  @@map("sf_invoices")
+}
+
+// ---------------------------------------------------------------------------
+// Salesforce payment mirror — minimal, active customers only.
+// LAYER: mirror — populated by sync jobs, not product code.
+// Maps to SF payment custom object (Payment__c or equivalent).
+// Sync implementation is a separate task.
+// ---------------------------------------------------------------------------
+
+model SfPayment {
+  id             String    @id @default(cuid())
+  sfId           String    @unique @map("sf_id") // SF record ID (18-char)
+  sfAccountId    String    @map("sf_account_id")
+  sfInvoiceId    String?   @map("sf_invoice_id") // bare string ref to SfInvoice.sfId
+  paymentDate    DateTime? @map("payment_date") @db.Date
+  amount         Float?    // currency units (not cents)
+  currency       String?
+  status         String?   // e.g. "Applied", "Unapplied", "Void"
+  paymentMethod  String?   @map("payment_method") // e.g. "ACH", "Credit Card", "Wire"
+  referenceId    String?   @map("reference_id") // check number, wire ref, etc.
+  externalUrl    String?   @map("external_url") // link to SF record
+  rawJson        Json?     @map("raw_json")
+  sfLastModified DateTime? @map("sf_last_modified")
+  syncedAt       DateTime  @default(now()) @map("synced_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  account SfAccount @relation(fields: [sfAccountId], references: [id], onDelete: Cascade)
+
+  @@index([sfAccountId])
+  @@index([status])
+  @@index([paymentDate])
+  @@map("sf_payments")
+}
+
+// ---------------------------------------------------------------------------
 // Stripe subscription mirror (local copy for instant dashboard queries)
+// LAYER: mirror — read-only cache.
+// Missing linkages (tracked in schema-cleanup-candidates.md):
+//   - No FK to QuoteRecord (stripeSubscriptionId is a bare string on QuoteRecord)
+//   - No FK to SfContract (stripeSubscriptionId is a bare string on SfContract)
 // ---------------------------------------------------------------------------
 
 model StripeSubscription {
@@ -286,7 +684,8 @@ model StripeSubscription {
   metadata           Json?
   syncedAt           DateTime  @default(now()) @map("synced_at")
 
-  items StripeSubscriptionItem[]
+  items    StripeSubscriptionItem[]
+  invoices StripeInvoice[]
 
   @@index([status])
   @@index([customerId])
@@ -296,6 +695,7 @@ model StripeSubscription {
 model StripeSubscriptionItem {
   id              String   @id // si_xxx — Stripe's native ID
   subscriptionId  String   @map("subscription_id")
+  customerId      String?  @map("customer_id") // denormalised from parent for efficient lookup
   productId       String   @map("product_id")
   productName     String   @map("product_name")
   priceId         String   @map("price_id")
@@ -305,10 +705,242 @@ model StripeSubscriptionItem {
   intervalCount   Int      @default(1) @map("interval_count")
   quantity        Int      @default(1)
   usageType       String   @default("licensed") @map("usage_type")
+  // SF correlation — populated by sync path
+  sfContractLineId  String? @map("sf_contract_line_id") // SfContractLine.id
+  correlationStatus String  @default("unmatched") @map("correlation_status") // matched | candidate | unmatched
+  correlationMethod String? @map("correlation_method") // exact_item_id | exact_price_id | heuristic
   syncedAt        DateTime @default(now()) @map("synced_at")
 
   subscription StripeSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@index([subscriptionId])
+  @@index([customerId])
+  @@index([sfContractLineId])
   @@map("stripe_subscription_items")
+}
+
+// ---------------------------------------------------------------------------
+// Stripe invoice mirror
+// ---------------------------------------------------------------------------
+
+model StripeInvoice {
+  id                String    @id // in_xxx
+  customerId        String    @map("customer_id")
+  subscriptionId    String?   @map("subscription_id")
+  number            String?
+  status            String?   // draft, open, paid, void, uncollectible
+  currency          String    @default("usd")
+  amountDue         Int       @default(0) @map("amount_due")
+  amountPaid        Int       @default(0) @map("amount_paid")
+  amountRemaining   Int       @default(0) @map("amount_remaining")
+  subtotal          Int       @default(0)
+  total             Int       @default(0)
+  tax               Int?
+  dueDate           DateTime? @map("due_date")
+  paidAt            DateTime? @map("paid_at")
+  hostedInvoiceUrl  String?   @map("hosted_invoice_url")
+  invoicePdf        String?   @map("invoice_pdf")
+  billingReason     String?   @map("billing_reason")
+  collectionMethod  String?   @map("collection_method")
+  periodStart       DateTime? @map("period_start")
+  periodEnd         DateTime? @map("period_end")
+  metadata          Json?
+  raw               Json?
+  stripeCreated     DateTime  @map("stripe_created")
+  syncedAt          DateTime  @default(now()) @map("synced_at")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  updatedAt         DateTime  @updatedAt @map("updated_at")
+
+  customer     StripeCustomer      @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  subscription StripeSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+
+  @@index([customerId])
+  @@index([subscriptionId])
+  @@index([status])
+  @@index([stripeCreated])
+  @@map("stripe_invoices")
+}
+
+// ---------------------------------------------------------------------------
+// Stripe payment intent mirror
+// ---------------------------------------------------------------------------
+
+model StripePayment {
+  id              String    @id // pi_xxx
+  customerId      String    @map("customer_id")
+  invoiceId       String?   @map("invoice_id")
+  amount          Int       @default(0)
+  amountReceived  Int       @default(0) @map("amount_received")
+  currency        String    @default("usd")
+  status          String    // requires_payment_method, processing, succeeded, canceled, etc.
+  description     String?
+  paymentMethodId String?   @map("payment_method_id")
+  cardBrand       String?   @map("card_brand")
+  cardLast4       String?   @map("card_last4")
+  receiptUrl      String?   @map("receipt_url")
+  metadata        Json?
+  raw             Json?
+  stripeCreated   DateTime  @map("stripe_created")
+  syncedAt        DateTime  @default(now()) @map("synced_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  customer StripeCustomer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+  @@index([invoiceId])
+  @@index([status])
+  @@index([stripeCreated])
+  @@map("stripe_payments")
+}
+
+// ---------------------------------------------------------------------------
+// Stripe payment method mirror
+// ---------------------------------------------------------------------------
+
+model StripePaymentMethod {
+  id            String    @id // pm_xxx
+  customerId    String?   @map("customer_id")
+  type          String    // card, us_bank_account, sepa_debit, etc.
+  cardBrand     String?   @map("card_brand")
+  cardLast4     String?   @map("card_last4")
+  cardExpMonth  Int?      @map("card_exp_month")
+  cardExpYear   Int?      @map("card_exp_year")
+  cardFunding   String?   @map("card_funding")
+  bankName      String?   @map("bank_name")
+  bankLast4     String?   @map("bank_last4")
+  isDefault     Boolean   @default(false) @map("is_default")
+  metadata      Json?
+  raw           Json?
+  stripeCreated DateTime  @map("stripe_created")
+  syncedAt      DateTime  @default(now()) @map("synced_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  customer StripeCustomer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@index([customerId])
+  @@index([type])
+  @@map("stripe_payment_methods")
+}
+
+// ---------------------------------------------------------------------------
+// Salesforce contact mirror
+// ---------------------------------------------------------------------------
+
+model SfContact {
+  id              String    @id // SF Contact.Id (18-char)
+  accountId       String    @map("account_id")
+  firstName       String?   @map("first_name")
+  lastName        String    @map("last_name")
+  email           String?
+  phone           String?
+  mobilePhone     String?   @map("mobile_phone")
+  title           String?
+  department      String?
+  mailingCity     String?   @map("mailing_city")
+  mailingState    String?   @map("mailing_state")
+  mailingCountry  String?   @map("mailing_country")
+  isBillTo        Boolean   @default(false) @map("is_bill_to")
+  isPrimary       Boolean   @default(false) @map("is_primary")
+  raw             Json?
+  sfLastModified  DateTime? @map("sf_last_modified")
+  syncedAt        DateTime  @default(now()) @map("synced_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  account SfAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([email])
+  @@index([sfLastModified])
+  @@map("sf_contacts")
+}
+
+// ---------------------------------------------------------------------------
+// Product layer — Omni-owned workflow and state entities
+// These are the first true domain models Omni owns.
+// Build product screens on these, not on raw mirrors.
+// ---------------------------------------------------------------------------
+
+// Renewal — workflow anchor for a contract renewal.
+// LAYER: product
+// FK to CustomerIndex (stable identity) rather than SfAccount or StripeCustomer.
+// sfContractId and stripeSubscriptionId are denormalized string references to mirrors —
+// no FK enforced since mirrors are append-updated by sync jobs.
+model Renewal {
+  id                   String        @id @default(cuid())
+  customerIndexId      String        @map("customer_index_id")
+  // String references to mirrors — not FK-enforced (mirrors are sync-managed)
+  sfContractId         String?       @map("sf_contract_id")
+  stripeSubscriptionId String?       @map("stripe_subscription_id")
+  quoteRecordId        String?       @map("quote_record_id")
+  ownerUserId          String?       @map("owner_user_id")
+  status               RenewalStatus @default(not_started)
+  targetRenewalDate    DateTime      @map("target_renewal_date")
+  atRisk               Boolean       @default(false) @map("at_risk")
+  notesSummary         String?       @map("notes_summary")
+  createdAt            DateTime      @default(now()) @map("created_at")
+  updatedAt            DateTime      @updatedAt @map("updated_at")
+
+  customer  CustomerIndex @relation(fields: [customerIndexId], references: [id])
+  owner     User?         @relation("RenewalOwner", fields: [ownerUserId], references: [id])
+
+  @@index([customerIndexId])
+  @@index([status])
+  @@index([targetRenewalDate])
+  @@index([sfContractId])
+  @@index([stripeSubscriptionId])
+  @@index([ownerUserId])
+  @@map("renewals")
+}
+
+// CustomerNote — CSM-authored notes attached to a customer.
+// LAYER: product
+model CustomerNote {
+  id              String   @id @default(cuid())
+  customerIndexId String   @map("customer_index_id")
+  authorUserId    String   @map("author_user_id")
+  title           String?
+  body            String
+  pinned          Boolean  @default(false)
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  customer CustomerIndex @relation(fields: [customerIndexId], references: [id])
+  author   User          @relation("NoteAuthor", fields: [authorUserId], references: [id])
+
+  @@index([customerIndexId])
+  @@index([authorUserId])
+  @@index([pinned])
+  @@index([createdAt])
+  @@map("customer_notes")
+}
+
+// AccountSignal — persisted health/risk signals per customer.
+// LAYER: product
+// type and severity use enums. payloadJson is flexible — signal schemas will
+// stabilize over time and can be typed more strictly then.
+model AccountSignal {
+  id              String        @id @default(cuid())
+  customerIndexId String        @map("customer_index_id")
+  type            String        // e.g. "payment_failure", "usage_drop", "renewal_risk", "csm_flag"
+  severity        SignalSeverity
+  status          String        @default("active") // active | resolved | dismissed
+  source          String        // "stripe", "salesforce", "system", "user"
+  payloadJson     Json?         @map("payload_json")
+  computedAt      DateTime      @map("computed_at")
+  expiresAt       DateTime?     @map("expires_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  customer CustomerIndex @relation(fields: [customerIndexId], references: [id])
+
+  @@index([customerIndexId])
+  @@index([type])
+  @@index([severity])
+  @@index([status])
+  @@index([computedAt])
+  @@index([expiresAt])
+  @@map("account_signals")
 }

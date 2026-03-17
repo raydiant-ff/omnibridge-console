@@ -17,5 +17,12 @@
     "lib": "@/lib",
     "hooks": "@/hooks"
   },
-  "iconLibrary": "lucide"
+  "iconLibrary": "lucide",
+  "registries": {
+    "@shadcnuikit": "https://shadcnuikit.com/r/{name}.json",
+    "@shadcn-dashboard": "https://shadcn-dashboard.com/r/{name}.json",
+    "@tailwind-admin": "https://tailwind-admin.com/r/{name}.json",
+    "@ui-layouts": "https://ui-layouts.com/r/{name}.json",
+    "@shadcnui-blocks": "https://shadcnui-blocks.com/r/{name}.json"
+  }
 }

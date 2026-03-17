@@ -43,7 +43,7 @@ export function PickBilling({
           className="space-y-3"
         >
           <label
-            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
+            className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${
               billingMode === "now" ? "border-primary bg-primary/5" : "hover:bg-muted/50"
             }`}
           >
@@ -58,7 +58,7 @@ export function PickBilling({
           </label>
 
           <label
-            className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
+            className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${
               billingMode === "future" ? "border-primary bg-primary/5" : "hover:bg-muted/50"
             }`}
           >

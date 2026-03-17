@@ -89,7 +89,7 @@ export function OverviewTab({ customer, stripeData, salesforceData }: Props) {
           {activeSubscriptions.length > 0 ? (
             <div className="space-y-3">
               {activeSubscriptions.map((sub) => (
-                <div key={sub.id} className="flex items-center justify-between rounded-lg border px-4 py-3">
+                <div key={sub.id} className="flex items-center justify-between rounded-xl border px-4 py-3">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-sm font-medium">{sub.plan.nickname}</span>
                     <span className="text-xs text-muted-foreground font-mono">{sub.id}</span>

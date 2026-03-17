@@ -22,6 +22,20 @@ export type {
   ProductLog,
   IdempotencyKey,
   QuoteRecord,
+  StripeSubscription,
+  StripeSubscriptionItem,
+  SyncJob,
+  SyncEvent,
+  StripeCustomer,
+  StripeProduct,
+  StripePrice,
+  SfAccount,
+  SfContract,
+  SfContractLine,
+  StripeInvoice,
+  StripePayment,
+  StripePaymentMethod,
+  SfContact,
 } from "../generated/client";
 
 export { Role, WorkItemStatus } from "../generated/client";

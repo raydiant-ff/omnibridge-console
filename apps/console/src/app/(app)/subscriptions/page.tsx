@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { Plus } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { SubscriptionsDashboard } from "./dashboard-section";
+import { PageHeader } from "@/components/workspace/page-header";
 
 const QUICK_ACTIONS = [
   { label: "Create Subscription", href: "/subscriptions/create", icon: Plus },
@@ -11,12 +12,10 @@ const QUICK_ACTIONS = [
 export default function SubscriptionsPage() {
   return (
     <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Subscription Manager</h1>
-        <p className="text-sm text-muted-foreground">
-          Manage the full subscription lifecycle — create, modify, and cancel Stripe subscriptions.
-        </p>
-      </div>
+      <PageHeader
+        title="Subscription Manager"
+        description="Manage the full subscription lifecycle — create, modify, and cancel Stripe subscriptions."
+      />
 
       <div className="flex flex-wrap gap-2">
         {QUICK_ACTIONS.map(({ label, href, icon: Icon }) => (

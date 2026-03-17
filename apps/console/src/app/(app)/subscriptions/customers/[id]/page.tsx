@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
+import { PageHeader } from "@/components/workspace/page-header";
 import { getCustomerById, getCustomerWorkItems, getCustomerAuditLogs } from "@/lib/queries/customers";
 import { getStripeDataForCustomer } from "@/lib/queries/stripe";
 import { getSalesforceDataForCustomer } from "@/lib/queries/salesforce";
@@ -35,18 +36,12 @@ export default async function CustomerDetailPage({ params }: Props) {
         </span>
       </nav>
 
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {customer.sfAccountName ?? "Unnamed Customer"}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {[customer.domain, customer.stripeCustomerId, customer.sfAccountId]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        title={customer.sfAccountName ?? "Unnamed Customer"}
+        description={[customer.domain, customer.stripeCustomerId, customer.sfAccountId]
+          .filter(Boolean)
+          .join(" · ")}
+      />
 
       <CustomerTabs
         customer={customer}

@@ -17,6 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { createOpportunityAction } from "@/lib/actions/opportunities";
 import { searchSalesforceAccounts } from "@/lib/queries/opportunities";
 import { CheckCircle2, Loader2, Search } from "lucide-react";
+import { PageHeader } from "@/components/workspace/page-header";
 
 interface StageOption {
   value: string;
@@ -143,9 +144,7 @@ export default function CreateOpportunityPage() {
   if (success) {
     return (
       <div className="flex flex-col gap-6">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Create Opportunity</h1>
-        </div>
+        <PageHeader title="Create Opportunity" />
         <Card>
           <CardContent className="flex flex-col items-center gap-4 py-16">
             <CheckCircle2 className="size-12 text-green-500" />
@@ -179,12 +178,10 @@ export default function CreateOpportunityPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Create Opportunity</h1>
-        <p className="text-sm text-muted-foreground">
-          Create a new opportunity in Salesforce without going through CPQ.
-        </p>
-      </div>
+      <PageHeader
+        title="Create Opportunity"
+        description="Create a new opportunity in Salesforce without going through CPQ."
+      />
 
       <Card className="max-w-2xl">
         <CardHeader>

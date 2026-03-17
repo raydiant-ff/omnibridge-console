@@ -67,7 +67,7 @@ export function PickDates({
         </div>
 
         {startDate && endDate && isValid && (
-          <div className="rounded-lg border bg-muted/50 px-4 py-3">
+          <div className="rounded-xl border bg-muted/50 px-4 py-3">
             <p className="text-sm">
               <span className="font-medium">Duration:</span>{" "}
               {formatDuration(new Date(startDate), new Date(endDate))}

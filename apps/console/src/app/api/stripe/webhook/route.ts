@@ -5,6 +5,13 @@ import { writeProductLog } from "@/lib/product-log";
 import type { ProductLogAction } from "@/lib/product-log";
 import { createSfQuoteEvent } from "@/lib/actions/sf-quote-event";
 import { finalizeQuoteAcceptance } from "@/lib/actions/finalize-quote-acceptance";
+import { upsertStripeCustomer } from "@/lib/actions/stripe-customer-sync";
+import { upsertStripeProduct, upsertStripePrice } from "@/lib/actions/stripe-product-sync";
+import { upsertStripeInvoice } from "@/lib/actions/stripe-invoice-sync";
+import { upsertStripePayment } from "@/lib/actions/stripe-payment-sync";
+import { upsertStripePaymentMethod, deleteStripePaymentMethod } from "@/lib/actions/stripe-payment-method-sync";
+import { writeSyncEvent } from "@/lib/actions/sync-event-log";
+import { resolveStripeActor } from "@/lib/actions/stripe-request-actor";
 
 export async function POST(request: Request) {
   const body = await request.text();
@@ -44,32 +51,169 @@ export async function POST(request: Request) {
     throw err;
   }
 
+  // Resolve actor from Stripe request log (non-blocking)
+  const requestId = (event.request as { id?: string | null } | null)?.id ?? null;
+  const reqIdempotencyKey = (event.request as { idempotency_key?: string | null } | null)?.idempotency_key ?? null;
+  const actorPromise = resolveStripeActor(requestId, reqIdempotencyKey);
+
+  /** Helper: write sync event with actor info attached */
+  function logSyncEvent(params: {
+    eventType: string;
+    externalId: string;
+    objectType: string;
+    objectId: string;
+    action: string;
+  }) {
+    actorPromise
+      .then((actor) =>
+        writeSyncEvent({
+          source: "stripe",
+          ...params,
+          actorType: actor.actorType,
+          actorId: actor.actorId,
+          actorName: actor.actorName,
+        }),
+      )
+      .catch(() => {});
+  }
+
   switch (event.type) {
-    case "product.created":
-      await handleProductEvent("created", event.data.object as Stripe.Product, event);
+    // --- Customer mirror ---
+    case "customer.created":
+    case "customer.updated": {
+      const customer = event.data.object as Stripe.Customer;
+      await upsertStripeCustomer(customer);
+      logSyncEvent({
+        eventType: event.type,
+        externalId: event.id,
+        objectType: "customer",
+        objectId: customer.id,
+        action: event.type === "customer.created" ? "created" : "updated",
+      });
       break;
+    }
+    case "customer.deleted": {
+      const deletedCus = event.data.object as unknown as { id: string };
+      await prisma.stripeCustomer.delete({ where: { id: deletedCus.id } }).catch(() => {});
+      logSyncEvent({
+        eventType: event.type,
+        externalId: event.id,
+        objectType: "customer",
+        objectId: deletedCus.id,
+        action: "deleted",
+      });
+      break;
+    }
+
+    // --- Product mirror ---
+    case "product.created": {
+      const createdProduct = event.data.object as Stripe.Product;
+      await upsertStripeProduct(createdProduct);
+      await handleProductEvent("created", createdProduct, event);
+      logSyncEvent({
+        eventType: event.type,
+        externalId: event.id,
+        objectType: "product",
+        objectId: createdProduct.id,
+        action: "created",
+      });
+      break;
+    }
     case "product.updated": {
+      const product = event.data.object as Stripe.Product;
+      await upsertStripeProduct(product);
       const prev = (event.data as Stripe.Event.Data & { previous_attributes?: Record<string, unknown> })
         .previous_attributes;
       let action: ProductLogAction = "updated";
       if (prev && "active" in prev) {
-        action = (event.data.object as Stripe.Product).active ? "activated" : "deactivated";
+        action = product.active ? "activated" : "deactivated";
       }
-      if (await hasRecentOmnibridgeLog((event.data.object as Stripe.Product).id, action)) {
+      if (await hasRecentOmnibridgeLog(product.id, action)) {
         return NextResponse.json({ received: true, skipped: "omnibridge_logged" });
       }
-      await handleProductEvent(action, event.data.object as Stripe.Product, event, prev);
+      await handleProductEvent(action, product, event, prev);
+      logSyncEvent({
+        eventType: event.type,
+        externalId: event.id,
+        objectType: "product",
+        objectId: product.id,
+        action,
+      });
       break;
     }
-    case "product.deleted":
-      await handleProductEvent("deleted", event.data.object as Stripe.Product, event);
+    case "product.deleted": {
+      const deletedProduct = event.data.object as Stripe.Product;
+      await prisma.stripeProduct.delete({ where: { id: deletedProduct.id } }).catch(() => {});
+      await handleProductEvent("deleted", deletedProduct, event);
+      logSyncEvent({
+        eventType: event.type,
+        externalId: event.id,
+        objectType: "product",
+        objectId: deletedProduct.id,
+        action: "deleted",
+      });
       break;
+    }
+
+    // --- Price mirror ---
+    case "price.created":
+    case "price.updated": {
+      const price = event.data.object as Stripe.Price;
+      await upsertStripePrice(price);
+      logSyncEvent({
+        eventType: event.type,
+        externalId: event.id,
+        objectType: "price",
+        objectId: price.id,
+        action: event.type === "price.created" ? "created" : "updated",
+      });
+      break;
+    }
+    case "price.deleted": {
+      const deletedPrice = event.data.object as Stripe.Price;
+      await prisma.stripePrice.delete({ where: { id: deletedPrice.id } }).catch(() => {});
+      logSyncEvent({
+        eventType: event.type,
+        externalId: event.id,
+        objectType: "price",
+        objectId: deletedPrice.id,
+        action: "deleted",
+      });
+      break;
+    }
+    // --- Invoice mirror ---
+    case "invoice.created":
+    case "invoice.updated":
+    case "invoice.finalized":
+    case "invoice.voided": {
+      const invoice = event.data.object as Stripe.Invoice;
+      await upsertStripeInvoice(invoice);
+      logSyncEvent({
+        eventType: event.type,
+        externalId: event.id,
+        objectType: "invoice",
+        objectId: invoice.id,
+        action: event.type.split(".")[1],
+      });
+      break;
+    }
+
     case "checkout.session.completed":
       await handleCheckoutCompleted(event.data.object as unknown as Record<string, unknown>);
       break;
-    case "invoice.paid":
+    case "invoice.paid": {
+      const paidInvoice = event.data.object as Stripe.Invoice;
+      await upsertStripeInvoice(paidInvoice);
+      logSyncEvent({
+        eventType: event.type,
+        externalId: event.id,
+        objectType: "invoice",
+        objectId: paidInvoice.id,
+        action: "paid",
+      });
       await handleInvoicePaid(event.data.object as unknown as Record<string, unknown>);
       break;
+    }
     case "customer.subscription.created":
     case "customer.subscription.updated":
     case "customer.subscription.deleted":
@@ -77,9 +221,63 @@ export async function POST(request: Request) {
     case "customer.subscription.resumed":
       await handleSubscriptionSync(event.data.object as Stripe.Subscription);
       break;
-    case "invoice.payment_failed":
+    case "invoice.payment_failed": {
+      const failedInvoice = event.data.object as Stripe.Invoice;
+      await upsertStripeInvoice(failedInvoice);
+      logSyncEvent({
+        eventType: event.type,
+        externalId: event.id,
+        objectType: "invoice",
+        objectId: failedInvoice.id,
+        action: "payment_failed",
+      });
       await handleInvoicePaymentFailed(event.data.object as unknown as Record<string, unknown>);
       break;
+    }
+
+    // --- Payment Intent mirror ---
+    case "payment_intent.succeeded":
+    case "payment_intent.payment_failed":
+    case "payment_intent.canceled": {
+      const pi = event.data.object as Stripe.PaymentIntent;
+      await upsertStripePayment(pi);
+      logSyncEvent({
+        eventType: event.type,
+        externalId: event.id,
+        objectType: "payment_intent",
+        objectId: pi.id,
+        action: event.type.split(".").slice(1).join("_"),
+      });
+      break;
+    }
+
+    // --- Payment Method mirror ---
+    case "payment_method.attached":
+    case "payment_method.updated": {
+      const pm = event.data.object as Stripe.PaymentMethod;
+      await upsertStripePaymentMethod(pm);
+      logSyncEvent({
+        eventType: event.type,
+        externalId: event.id,
+        objectType: "payment_method",
+        objectId: pm.id,
+        action: event.type.split(".")[1],
+      });
+      break;
+    }
+    case "payment_method.detached": {
+      const detachedPm = event.data.object as Stripe.PaymentMethod;
+      await deleteStripePaymentMethod(detachedPm.id);
+      logSyncEvent({
+        eventType: event.type,
+        externalId: event.id,
+        objectType: "payment_method",
+        objectId: detachedPm.id,
+        action: "detached",
+      });
+      break;
+    }
+
     default:
       break;
   }

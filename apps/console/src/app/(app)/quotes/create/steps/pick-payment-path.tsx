@@ -105,7 +105,7 @@ export function PickPaymentPath({
         className="space-y-3"
       >
         <label
-          className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
+          className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${
             mode === "pay_now"
               ? "border-primary bg-primary/5"
               : "hover:bg-muted/50"
@@ -126,7 +126,7 @@ export function PickPaymentPath({
         </label>
 
         <label
-          className={`flex cursor-pointer items-start gap-3 rounded-lg border p-4 transition-colors ${
+          className={`flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition-colors ${
             mode === "send_invoice"
               ? "border-primary bg-primary/5"
               : "hover:bg-muted/50"
@@ -148,7 +148,7 @@ export function PickPaymentPath({
       </RadioGroup>
 
       {mode === "send_invoice" && (
-        <div className="flex flex-col gap-4 rounded-lg border bg-muted/30 p-4">
+        <div className="flex flex-col gap-4 rounded-xl border bg-muted/30 p-4">
           <div>
             <Label className="text-sm font-medium">Invoice Terms</Label>
             <p className="text-xs text-muted-foreground">

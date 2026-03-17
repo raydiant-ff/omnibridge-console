@@ -13,7 +13,7 @@ When debugging, follow this sequence:
    - webhook
    - queue/job
    - database state
-   - third-party API response (Stripe, Salesforce, PandaDoc)
+   - third-party API response (Stripe, Salesforce, DocuSign)
 3. Identify the most likely path through the code.
 4. Gather evidence before editing:
    - logs
@@ -35,4 +35,4 @@ Additional rules:
 - For billing bugs, check idempotency, retries, duplicate event handling, delayed state transitions, and environment/config mismatches.
 - For Stripe/Salesforce mismatches, explicitly state which system initiated the state change and which system is authoritative for the field or transition in question.
 - For webhook bugs, check `IdempotencyKey` deduplication, `ProductLog` event deduplication, and `AuditLog` entries.
-- For PandaDoc bugs, check document status cross-verification (the webhook handler verifies status via API before acting).
+- For DocuSign bugs, verify HMAC signature processing and envelope status in the webhook handler.

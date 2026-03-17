@@ -1,5 +1,6 @@
 import { getDashboardOpportunities } from "@/lib/queries/opportunities";
 import { DashboardCharts } from "./dashboard-charts";
+import { PageHeader } from "@/components/workspace/page-header";
 
 export default async function OpportunitiesPage() {
   let error: string | null = null;
@@ -14,14 +15,10 @@ export default async function OpportunitiesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          Opportunities Dashboard
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Year-to-date pipeline overview and revenue insights.
-        </p>
-      </div>
+      <PageHeader
+        title="Opportunities Dashboard"
+        description="Year-to-date pipeline overview and revenue insights."
+      />
 
       {error ? (
         <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">

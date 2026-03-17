@@ -1,32 +1,17 @@
-import { getMyOpportunities, type OpportunityRow } from "@/lib/queries/opportunities";
-import { OpportunitiesTable } from "../opportunities-table";
+import { getMyOpportunitySignals } from "@/lib/queries/opportunity-signals";
+import { PageHeader } from "@/components/workspace/page-header";
+import { OpportunityExplorer } from "./opportunity-explorer";
 
 export default async function MyOpportunitiesPage() {
-  let opportunities: OpportunityRow[] = [];
-  let error: string | null = null;
-
-  try {
-    opportunities = await getMyOpportunities();
-  } catch (err) {
-    error = err instanceof Error ? err.message : "Failed to load opportunities.";
-  }
+  const signals = await getMyOpportunitySignals();
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">My Opportunities</h1>
-        <p className="text-sm text-muted-foreground">
-          Open opportunities assigned to you in Salesforce.
-        </p>
-      </div>
-
-      {error ? (
-        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
-      ) : (
-        <OpportunitiesTable opportunities={opportunities} />
-      )}
+      <PageHeader
+        title="My Opportunities"
+        description="Search customers to view their Salesforce account details and opportunities."
+      />
+      <OpportunityExplorer signals={signals} />
     </div>
   );
 }

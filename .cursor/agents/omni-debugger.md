@@ -22,7 +22,7 @@ Required workflow:
 
 Common debugging targets in this repo:
 - Stripe webhook route: apps/console/src/app/api/stripe/webhook/route.ts
-- PandaDoc webhook route: apps/console/src/app/api/pandadoc/webhook/route.ts
+- DocuSign webhook route: apps/console/src/app/api/docusign/webhook/route.ts
 - Quote creation/acceptance: apps/console/src/lib/actions/quotes.ts
 - SF quote mirror: apps/console/src/lib/actions/sf-quote-mirror.ts
 - SF contract creation: apps/console/src/lib/actions/sf-contract-from-quote.ts

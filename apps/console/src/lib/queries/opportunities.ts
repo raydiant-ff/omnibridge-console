@@ -10,6 +10,7 @@ export interface OpportunityRow {
   accountName: string | null;
   accountId: string | null;
   stageName: string;
+  type: string | null;
   amount: number | null;
   closeDate: string;
   createdDate: string;
@@ -24,6 +25,7 @@ const MOCK_OPPORTUNITIES: OpportunityRow[] = [
     accountName: "Acme Corp",
     accountId: "001MOCK001",
     stageName: "Pricing & Negotiation",
+    type: "New",
     amount: 48000,
     closeDate: "2026-04-15",
     createdDate: "2026-01-10T08:00:00Z",
@@ -36,6 +38,7 @@ const MOCK_OPPORTUNITIES: OpportunityRow[] = [
     accountName: "Widget Inc",
     accountId: "001MOCK002",
     stageName: "Contract Sent",
+    type: "New",
     amount: 12000,
     closeDate: "2026-03-20",
     createdDate: "2026-01-05T14:00:00Z",
@@ -48,6 +51,7 @@ const MOCK_OPPORTUNITIES: OpportunityRow[] = [
     accountName: "TechCo",
     accountId: "001MOCK003",
     stageName: "Discovery & Qualification",
+    type: "Renewal",
     amount: null,
     closeDate: "2026-06-01",
     createdDate: "2026-02-01T09:30:00Z",
@@ -92,6 +96,7 @@ const MOCK_DASHBOARD_OPPORTUNITIES: OpportunityRow[] = [
     accountName: "GlobalTech",
     accountId: "001MOCK004",
     stageName: "Closed Won",
+    type: "New",
     amount: 120000,
     closeDate: "2026-01-28",
     createdDate: "2025-11-15T10:00:00Z",
@@ -104,6 +109,7 @@ const MOCK_DASHBOARD_OPPORTUNITIES: OpportunityRow[] = [
     accountName: "DataFlow Inc",
     accountId: "001MOCK005",
     stageName: "Closed Won",
+    type: "Renewal",
     amount: 36000,
     closeDate: "2026-02-10",
     createdDate: "2025-12-20T09:00:00Z",
@@ -116,6 +122,7 @@ const MOCK_DASHBOARD_OPPORTUNITIES: OpportunityRow[] = [
     accountName: "Pinnacle Corp",
     accountId: "001MOCK006",
     stageName: "Closed Won",
+    type: "Expansion",
     amount: 85000,
     closeDate: "2026-02-05",
     createdDate: "2026-01-02T08:00:00Z",
@@ -128,6 +135,7 @@ const MOCK_DASHBOARD_OPPORTUNITIES: OpportunityRow[] = [
     accountName: "Nexus Media",
     accountId: "001MOCK007",
     stageName: "Closed Lost",
+    type: "New",
     amount: 8000,
     closeDate: "2026-01-15",
     createdDate: "2025-12-01T12:00:00Z",
@@ -140,6 +148,7 @@ const MOCK_DASHBOARD_OPPORTUNITIES: OpportunityRow[] = [
     accountName: "CloudSync",
     accountId: "001MOCK008",
     stageName: "Customer Evaluation",
+    type: "Amendment",
     amount: 64000,
     closeDate: "2026-05-15",
     createdDate: "2026-02-12T10:00:00Z",
@@ -196,6 +205,7 @@ function mapOpportunity(r: {
   CloseDate: string;
   CreatedDate: string;
   Amount: number | null;
+  Type: string | null;
   LastModifiedDate: string;
   Account: { Id: string; Name: string } | null;
   Owner: { Name: string } | null;
@@ -206,6 +216,7 @@ function mapOpportunity(r: {
     accountName: r.Account?.Name ?? null,
     accountId: r.Account?.Id ?? null,
     stageName: r.StageName,
+    type: r.Type ?? null,
     amount: r.Amount,
     closeDate: r.CloseDate,
     createdDate: r.CreatedDate,
@@ -245,6 +256,36 @@ export async function searchSalesforceAccounts(
     );
   } catch (err) {
     console.error("[searchSalesforceAccounts] error:", err);
+    return [];
+  }
+}
+
+export async function getOpportunitiesForAccount(
+  sfAccountId: string,
+  quoteType?: string,
+): Promise<OpportunityRow[]> {
+  await requireSession();
+
+  if (!sfAccountId) return [];
+
+  if (flags.useMockSalesforce) {
+    const all = MOCK_DASHBOARD_OPPORTUNITIES.filter(
+      (o) => o.accountId === sfAccountId,
+    );
+    if (quoteType) return all.filter((o) => o.type === quoteType);
+    return all;
+  }
+
+  try {
+    const { getOpportunitiesByAccountId } = await import("@omnibridge/salesforce");
+    const records = await getOpportunitiesByAccountId(sfAccountId);
+    let rows = records.map(mapOpportunity);
+    if (quoteType) {
+      rows = rows.filter((r) => r.type === quoteType);
+    }
+    return rows;
+  } catch (err) {
+    console.error("[getOpportunitiesForAccount] error:", err);
     return [];
   }
 }

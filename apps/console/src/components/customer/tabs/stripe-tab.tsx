@@ -38,7 +38,7 @@ const STATUS_COLORS: Record<string, "default" | "secondary" | "destructive" | "o
 export function StripeTab({ data, isMock }: Props) {
   if (!data) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-12 text-center">
+      <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed py-12 text-center">
         <p className="text-sm font-medium">No Stripe customer linked</p>
         <p className="text-sm text-muted-foreground">
           Link a Stripe customer ID to this record to see billing data.

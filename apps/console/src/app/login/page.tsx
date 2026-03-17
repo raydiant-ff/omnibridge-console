@@ -50,10 +50,10 @@ function LoginForm() {
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 p-8">
       <form
         onSubmit={handleSubmit}
-        className="flex w-full max-w-sm flex-col gap-6 rounded-xl border bg-card p-8 shadow-sm"
+        className="flex w-full max-w-sm flex-col gap-6 rounded-2xl border bg-card p-8 card-shadow"
       >
         <div className="flex flex-col items-center gap-2 text-center">
-          <h1 className="text-2xl font-bold tracking-tight">Displai Omni</h1>
+          <h1 className="text-lg font-semibold tracking-tight">Displai Omni</h1>
           <p className="text-sm text-muted-foreground">
             Sign in to continue
           </p>

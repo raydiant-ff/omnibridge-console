@@ -2,6 +2,7 @@ import Link from "next/link";
 import { searchCustomersUnified } from "@/lib/queries/customers";
 import { SearchForm } from "./search-form";
 import { Badge } from "@/components/ui/badge";
+import { PageHeader } from "@/components/workspace/page-header";
 import {
   Table,
   TableBody,
@@ -28,12 +29,10 @@ export default async function CustomersPage({ searchParams }: Props) {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Customers</h1>
-        <p className="text-sm text-muted-foreground">
-          Search across local database, Salesforce Accounts, and Stripe Customers.
-        </p>
-      </div>
+      <PageHeader
+        title="Customers"
+        description="Search across local database, Salesforce Accounts, and Stripe Customers."
+      />
 
       <SearchForm defaultValue={query} />
 
@@ -44,7 +43,7 @@ export default async function CustomersPage({ searchParams }: Props) {
           </p>
 
           {customers.length > 0 ? (
-            <div className="overflow-x-auto rounded-lg border">
+            <div className="overflow-x-auto rounded-xl border">
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -77,10 +76,10 @@ export default async function CustomersPage({ searchParams }: Props) {
                             <span className="font-medium">{c.name}</span>
                           )}
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
+                        <TableCell className={c.email ? "text-foreground" : "text-muted-foreground"}>
                           {c.email ?? "—"}
                         </TableCell>
-                        <TableCell className="text-muted-foreground">
+                        <TableCell className={c.domain ? "text-foreground" : "text-muted-foreground"}>
                           {c.domain ?? "—"}
                         </TableCell>
                         <TableCell>
@@ -111,7 +110,7 @@ export default async function CustomersPage({ searchParams }: Props) {
               </Table>
             </div>
           ) : (
-            <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-12 text-center">
+            <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed py-12 text-center">
               <p className="text-sm font-medium">No customers found</p>
               <p className="text-sm text-muted-foreground">
                 Try a different search term.

@@ -21,7 +21,7 @@ Workflow:
 Domain knowledge:
 - Stripe is the billing engine (quotes, subscriptions, invoices, checkout, subscription schedules)
 - Salesforce is the CRM layer (accounts, opportunities, contracts, SBQQ subscriptions)
-- PandaDoc handles document generation and e-signature
+- DocuSign handles e-signature (Stripe PDF + Focused View); no template/merge needed
 - The Prisma schema includes QuoteRecord, AuditLog, ProductLog, CustomerIndex, WorkItem
 - Webhook flows must be idempotent (deduplication via ProductLog eventId and IdempotencyKey)
 - AuditLog.actorUserId is nullable for system/webhook events

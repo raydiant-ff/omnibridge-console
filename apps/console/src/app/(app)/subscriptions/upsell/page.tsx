@@ -1,15 +1,14 @@
 import { TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/workspace/page-header";
 
 export default function UpsellPage() {
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Upsell</h1>
-        <p className="text-sm text-muted-foreground">
-          Upgrade a customer to a higher-tier plan or increase quantities.
-        </p>
-      </div>
+      <PageHeader
+        title="Upsell"
+        description="Upgrade a customer to a higher-tier plan or increase quantities."
+      />
 
       <Card>
         <CardContent className="flex flex-col items-center gap-4 py-16">

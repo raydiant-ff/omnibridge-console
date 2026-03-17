@@ -19,7 +19,7 @@ export function DryRunLogPanel({
   if (logs.length === 0) return null;
 
   return (
-    <div className="rounded-lg border border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20">
+    <div className="rounded-xl border border-amber-500/30 bg-amber-50/50 dark:bg-amber-950/20">
       <button
         type="button"
         onClick={() => setExpanded((v) => !v)}

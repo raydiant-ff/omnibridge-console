@@ -81,13 +81,13 @@ export function PickPrices({ lineItems, onChange, onNext, onBack }: Props) {
         {/* Selected items */}
         {lineItems.length > 0 && (
           <div className="space-y-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+            <p className="text-sm font-medium text-muted-foreground">
               Selected ({lineItems.length})
             </p>
             {lineItems.map((li) => (
               <div
                 key={li.priceId}
-                className="flex items-center justify-between rounded-lg border border-primary/30 bg-primary/5 px-4 py-3"
+                className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-3"
               >
                 <div className="flex flex-col gap-0.5">
                   <span className="text-sm font-medium">{li.nickname}</span>
@@ -152,7 +152,7 @@ export function PickPrices({ lineItems, onChange, onNext, onBack }: Props) {
                 key={price.id}
                 type="button"
                 onClick={() => addPrice(price)}
-                className="flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                className="flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors hover:bg-muted/50"
               >
                 <div className="flex flex-col gap-0.5">
                   <span className="text-sm font-medium">{price.nickname}</span>

@@ -15,7 +15,7 @@ export interface StripeCoupon {
   timesRedeemed: number;
   valid: boolean;
   created: number;
-  metadata: Record<string, string>;
+  metadata: Record<string, string> | null;
   appliesTo: string[] | null;
 }
 

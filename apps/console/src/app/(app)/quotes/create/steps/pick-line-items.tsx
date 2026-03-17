@@ -193,13 +193,13 @@ export function PickLineItems({ lineItems, billingFrequency, onChange, onNext, o
 
       {lineItems.length > 0 && (
         <div className="space-y-2">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          <p className="text-sm font-medium text-muted-foreground">
             Selected ({lineItems.length})
           </p>
           {lineItems.map((li, idx) => (
             <div
               key={idx}
-              className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3"
+              className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3"
             >
               <div className="flex items-center justify-between">
                 <div className="flex flex-col gap-0.5">
@@ -288,7 +288,7 @@ export function PickLineItems({ lineItems, billingFrequency, onChange, onNext, o
           ))}
           <div className="space-y-1">
             {totalDelta !== 0 && (
-              <div className="flex items-center justify-between rounded-lg bg-muted/30 px-4 py-1.5">
+              <div className="flex items-center justify-between rounded-xl bg-muted/30 px-4 py-1.5">
                 <span className="text-xs text-muted-foreground">Standard total</span>
                 <span className="font-mono text-xs text-muted-foreground">
                   {formatCurrency(standardTotal, lineItems[0]?.currency ?? "usd")}
@@ -296,7 +296,7 @@ export function PickLineItems({ lineItems, billingFrequency, onChange, onNext, o
               </div>
             )}
             {totalDelta < 0 && (
-              <div className="flex items-center justify-between rounded-lg bg-green-50 px-4 py-1.5">
+              <div className="flex items-center justify-between rounded-xl bg-green-50 px-4 py-1.5">
                 <span className="text-xs font-medium text-green-700">Discount</span>
                 <span className="font-mono text-xs font-medium text-green-700">
                   {formatCurrency(totalDelta, lineItems[0]?.currency ?? "usd")}
@@ -304,14 +304,14 @@ export function PickLineItems({ lineItems, billingFrequency, onChange, onNext, o
               </div>
             )}
             {totalDelta > 0 && (
-              <div className="flex items-center justify-between rounded-lg bg-amber-50 px-4 py-1.5">
+              <div className="flex items-center justify-between rounded-xl bg-amber-50 px-4 py-1.5">
                 <span className="text-xs font-medium text-amber-700">Premium</span>
                 <span className="font-mono text-xs font-medium text-amber-700">
                   +{formatCurrency(totalDelta, lineItems[0]?.currency ?? "usd")}
                 </span>
               </div>
             )}
-            <div className="flex items-center justify-between rounded-lg bg-muted/50 px-4 py-2">
+            <div className="flex items-center justify-between rounded-xl bg-muted/50 px-4 py-2">
               <span className="text-sm font-medium">
                 Total{" "}
                 <span className="text-xs font-normal text-muted-foreground">
@@ -357,7 +357,7 @@ export function PickLineItems({ lineItems, billingFrequency, onChange, onNext, o
               type="button"
               disabled={isLoadingThis}
               onClick={() => addProduct(product)}
-              className={`flex w-full items-center gap-3 rounded-lg border px-4 py-3 text-left transition-colors ${
+              className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-left transition-colors ${
                 alreadyAdded
                   ? "border-primary/20 bg-primary/5 hover:bg-primary/10"
                   : "hover:bg-muted/50"

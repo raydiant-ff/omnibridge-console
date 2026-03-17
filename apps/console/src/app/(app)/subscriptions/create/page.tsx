@@ -1,14 +1,13 @@
 import { Wizard } from "./wizard";
+import { PageHeader } from "@/components/workspace/page-header";
 
 export default function CreateSubscriptionPage() {
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Create Subscription</h1>
-        <p className="text-sm text-muted-foreground">
-          Set up a new Stripe subscription schedule for a customer.
-        </p>
-      </div>
+      <PageHeader
+        title="Create Subscription"
+        description="Set up a new Stripe subscription schedule for a customer."
+      />
       <Wizard />
     </div>
   );

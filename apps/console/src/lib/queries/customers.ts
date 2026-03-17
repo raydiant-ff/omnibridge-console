@@ -4,6 +4,7 @@ import { cached } from "@/lib/cache";
 import { prisma } from "@omnibridge/db";
 import { requireSession } from "@omnibridge/auth";
 import { flags } from "@/lib/feature-flags";
+import { SF_ACCOUNT_BASE_WHERE } from "@/lib/repo";
 
 export interface UnifiedCustomer {
   id: string;
@@ -51,7 +52,27 @@ export async function searchCustomersUnified(query: string): Promise<UnifiedCust
     take: 50,
   });
 
-  for (const c of dbResults) {
+  // Exclude CustomerIndex entries that link to stub SF accounts (isStub=true).
+  // CustomerIndex has no Prisma relation to SfAccount, so resolve the allowed set here.
+  const sfIds = dbResults.map((c) => c.sfAccountId).filter((id): id is string => id !== null);
+  const allowedSfIds =
+    sfIds.length > 0
+      ? new Set(
+          (
+            await prisma.sfAccount.findMany({
+              where: { id: { in: sfIds }, ...SF_ACCOUNT_BASE_WHERE },
+              select: { id: true },
+            })
+          ).map((r) => r.id),
+        )
+      : new Set<string>();
+
+  // Keep rows with no sfAccountId (stripe-only), or whose sfAccountId passed the isStub filter.
+  const nonStubSfResults = dbResults.filter(
+    (c) => c.sfAccountId === null || allowedSfIds.has(c.sfAccountId),
+  );
+
+  for (const c of nonStubSfResults) {
     const key = c.sfAccountId ?? c.stripeCustomerId ?? c.id;
     seen.add(key);
     results.push({
@@ -284,6 +305,7 @@ export interface AccountDetail {
   churnDetails: string | null;
   arNotes: string | null;
   latestHealthUpdate: string | null;
+  status: string | null;
 }
 
 async function _fetchAccountDetailFromApi(accountId: string): Promise<AccountDetail | null> {
@@ -327,6 +349,7 @@ async function _fetchAccountDetailFromApi(accountId: string): Promise<AccountDet
     churnDetails: a.Churn_Details__c,
     arNotes: a.AR_Notes__c,
     latestHealthUpdate: a.Latest_Health_Update_text__c,
+    status: a.Status_Calculated__c,
   };
 }
 
@@ -366,6 +389,7 @@ export async function getAccountDetailById(accountId: string): Promise<AccountDe
       churnDetails: null,
       arNotes: null,
       latestHealthUpdate: "Customer is healthy, renewed Q1 2026.",
+      status: "Active",
     };
   }
 

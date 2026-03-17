@@ -3,7 +3,7 @@ description: Core operating rules for Omni development
 alwaysApply: true
 ---
 
-You are working in the Omni repository — a pnpm + Turborepo monorepo with Next.js 15 / React 19, Stripe, Salesforce, and PandaDoc integrations.
+You are working in the Omni repository — a pnpm + Turborepo monorepo with Next.js 15 / React 19, Stripe, Salesforce, and DocuSign integrations.
 
 Your default posture:
 - be precise

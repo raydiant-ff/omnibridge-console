@@ -111,7 +111,7 @@ async function _fetchStripeCustomerDetailFromApi(
       stripe.subscriptions.list({
         customer: stripeCustomerId,
         limit: 20,
-        expand: ["data.items.data.price.product"],
+        expand: ["data.items.data.price"],
       }),
       stripe.paymentIntents.list({
         customer: stripeCustomerId,
@@ -122,6 +122,26 @@ async function _fetchStripeCustomerDetailFromApi(
         limit: 20,
       }),
     ]);
+
+    // Collect unique product IDs and resolve names
+    const productIds = new Set<string>();
+    for (const sub of subscriptions.data) {
+      for (const si of sub.items.data) {
+        const pid = si.price.product;
+        if (typeof pid === "string") productIds.add(pid);
+      }
+    }
+    const productNames = new Map<string, string>();
+    await Promise.all(
+      [...productIds].map(async (id) => {
+        try {
+          const product = await stripe.products.retrieve(id);
+          productNames.set(id, product.name);
+        } catch {
+          // ignore — will fall back to null
+        }
+      }),
+    );
 
     return {
       subscriptions: subscriptions.data.map((sub) => ({
@@ -136,7 +156,9 @@ async function _fetchStripeCustomerDetailFromApi(
           const productName =
             typeof pid === "object" && pid !== null && "name" in pid
               ? (pid as { name: string }).name
-              : null;
+              : typeof pid === "string"
+                ? productNames.get(pid) ?? null
+                : null;
           return {
             id: si.id,
             priceId: price.id,

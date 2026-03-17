@@ -1,0 +1,46 @@
+ Here's a summary of what was built:
+
+  Customer 360 v1 — Implementation Summary
+
+  What was implemented
+
+  Full projection-backed customer workspace at /customers/[id]/360 — the first product page built on the new Omni architecture.
+
+  Customer Identity Bar (sticky, z-10)
+  - Account name + live subscription status pill + delinquency flag
+  - ARR headline, domain, owner/CSM, account type
+  - "New Quote" and contextual "Renewal" action buttons (shown only when urgency is not on_track)
+
+  Stat Strip — Bloomberg-density horizontal bar: MRR, ARR, balance, contract end, subscription count — all from real projection data
+
+  Signal Strip — derived dynamically from projection data: delinquency, past-due subscription, cancelAtPeriodEnd, renewal urgency (overdue/critical/due_soon),
+  DNR flag, healthy indicator. No hardcoded signals.
+
+  3-column layout: tabbed main area + sticky right action rail
+  - Overview tab: account details + active contract fields (2-col grid) + inline Renewal panel with urgency/ARR/DNR/workflow status
+  - Subscriptions tab: per-subscription panels with items, MRR, period, linked contract
+  - Invoices tab: invoice list with status, amounts, hosted URL links
+
+  Action Rail (right, sticky): Quick Actions (Create Quote, Prepare Renewal), Ownership (AE/CSM), External Links (SF/Stripe), System IDs with copy buttons, Sync
+   Status
+
+  Files changed
+
+  - app/(app)/customers/[id]/360/page.tsx — rewritten: Server Component loader using projections; resolves SF Account ID → CustomerIndex.id; parallel-fetches
+  subscriptions + invoices + renewal
+  - app/(app)/customers/[id]/360/customer-360.tsx — rewritten: no mock data, all real projection types; full page composition
+  - app/(app)/customers/[id]/page.tsx — added "360 View" button to navigate to the new workspace
+  - app/(app)/contracts/[id]/page.tsx — removed pre-existing unused Link import (cleanup)
+
+  No forbidden paths introduced
+
+  - Zero lib/queries/* imports in the new 360 page
+  - Zero components/workspace/* imports
+  - mock-data.ts is untouched (already has DELETE BEFORE WIRING header) — the page no longer imports from it
+
+  Recommended follow-ups
+
+  1. Contacts panel — SfContact data isn't in CustomerView; add contacts to the subscription tab or a new tab once getCustomerContactViews is added to
+  projections
+  2. Quote history panel — getCustomerQuoteViews(stripeCustomerId) is already in the projection layer; easy addition to the Invoices tab or a new Quotes tab
+  3. Delete mock-data.ts — now that the page is wired to real projections, this file can be removed in a cleanup PR

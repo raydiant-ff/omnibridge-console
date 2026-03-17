@@ -1,3 +1,12 @@
+-- Add columns that were pushed directly (db:push) without a migration file
+ALTER TABLE "quote_records" ADD COLUMN IF NOT EXISTS "quote_type" TEXT NOT NULL DEFAULT 'new';
+ALTER TABLE "quote_records" ADD COLUMN IF NOT EXISTS "existing_items_json" TEXT;
+ALTER TABLE "quote_records" ADD COLUMN IF NOT EXISTS "docusign_envelope_id" TEXT;
+ALTER TABLE "quote_records" ADD COLUMN IF NOT EXISTS "parent_subscription_id" TEXT;
+ALTER TABLE "quote_records" ADD COLUMN IF NOT EXISTS "parent_schedule_id" TEXT;
+ALTER TABLE "quote_records" ADD COLUMN IF NOT EXISTS "effective_timing" TEXT;
+ALTER TABLE "quote_records" ADD COLUMN IF NOT EXISTS "proration_amount_cents" INTEGER;
+
 -- Convert String columns to JSONB
 ALTER TABLE "quote_records" ALTER COLUMN "line_items_json" TYPE jsonb USING "line_items_json"::jsonb;
 ALTER TABLE "quote_records" ALTER COLUMN "billing_address_json" TYPE jsonb USING "billing_address_json"::jsonb;

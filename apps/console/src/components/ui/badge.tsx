@@ -14,7 +14,7 @@ const badgeVariants = cva(
         secondary:
           "bg-muted text-muted-foreground border-border [a&]:hover:bg-muted/80",
         destructive:
-          "bg-red-50 text-red-700 border-red-200/60 [a&]:hover:bg-red-100/80 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800/40",
+          "bg-destructive/10 text-destructive border-destructive/20 [a&]:hover:bg-destructive/15 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/20 dark:border-destructive/30",
         outline:
           "border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         ghost:
@@ -22,11 +22,11 @@ const badgeVariants = cva(
         link:
           "border-transparent text-primary underline-offset-4 [a&]:hover:underline",
         success:
-          "bg-emerald-50 text-emerald-700 border-emerald-200/60 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800/40",
+          "bg-success/10 text-success border-success/20 dark:bg-success/20 dark:border-success/30",
         warning:
-          "bg-amber-50 text-amber-700 border-amber-200/60 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800/40",
+          "bg-warning/10 text-warning border-warning/20 dark:bg-warning/20 dark:border-warning/30",
         info:
-          "bg-blue-50 text-blue-700 border-blue-200/60 dark:bg-blue-950/40 dark:text-blue-400 dark:border-blue-800/40",
+          "bg-primary/10 text-primary border-primary/20 dark:bg-primary/20 dark:border-primary/30",
       },
     },
     defaultVariants: {

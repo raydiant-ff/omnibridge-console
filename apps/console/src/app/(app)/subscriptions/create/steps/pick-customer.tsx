@@ -92,7 +92,7 @@ export function PickCustomer({ selected, onSelect }: Props) {
                     })
                   }
                   disabled={!hasStripe}
-                  className={`flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition-colors ${
+                  className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${
                     isSelected
                       ? "border-primary bg-primary/5"
                       : hasStripe

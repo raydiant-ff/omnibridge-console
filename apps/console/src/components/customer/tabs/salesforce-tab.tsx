@@ -34,7 +34,7 @@ const STAGE_COLORS: Record<string, "default" | "secondary" | "destructive" | "ou
 export function SalesforceTab({ data, isMock }: Props) {
   if (!data) {
     return (
-      <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-12 text-center">
+      <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed py-12 text-center">
         <p className="text-sm font-medium">No Salesforce account linked</p>
         <p className="text-sm text-muted-foreground">
           Link a Salesforce Account ID to see CRM data.

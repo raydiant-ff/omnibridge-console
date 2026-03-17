@@ -1,6 +1,50 @@
 "use server";
 
+import { prisma, Prisma } from "@omnibridge/db";
+import type { Stripe } from "@omnibridge/stripe";
 import { requireSession } from "@omnibridge/auth";
+
+/**
+ * Upsert a Stripe Customer into the local mirror.
+ * Safe to call from webhooks and backfill scripts.
+ */
+export async function upsertStripeCustomer(customer: Stripe.Customer) {
+  const sfAccountId =
+    customer.metadata?.salesforce_account_id ??
+    customer.metadata?.sf_account_id ??
+    null;
+
+  const rawPm = (customer as any).default_payment_method
+    ?? customer.invoice_settings?.default_payment_method
+    ?? null;
+  const defaultPm =
+    typeof rawPm === "string" ? rawPm : rawPm?.id ?? null;
+
+  const data = {
+    name: customer.name,
+    email: customer.email,
+    phone: customer.phone,
+    description: customer.description,
+    currency: customer.currency,
+    balance: customer.balance ?? 0,
+    delinquent: customer.delinquent ?? false,
+    defaultPaymentMethod: defaultPm,
+    sfAccountId,
+    metadata: (customer.metadata ?? {}) as Prisma.JsonObject,
+    raw: customer as unknown as Prisma.JsonObject,
+    syncedAt: new Date(),
+  };
+
+  await prisma.stripeCustomer.upsert({
+    where: { id: customer.id },
+    create: {
+      id: customer.id,
+      ...data,
+      stripeCreated: new Date(customer.created * 1000),
+    },
+    update: data,
+  });
+}
 
 export interface SyncStripeCustomerEmailResult {
   success: boolean;
@@ -9,32 +53,27 @@ export interface SyncStripeCustomerEmailResult {
 }
 
 /**
- * Ensures a Stripe customer has a valid email address by syncing from Salesforce Account
+ * Core email sync logic — no session required, safe for webhook contexts.
  */
-export async function syncStripeCustomerEmail(
+async function syncEmailFromSalesforce(
   stripeCustomerId: string,
   sfAccountId: string,
 ): Promise<SyncStripeCustomerEmailResult> {
-  await requireSession();
-
   try {
     const { getStripeClient } = await import("@omnibridge/stripe");
-    const { soql } = await import("@omnibridge/salesforce");
-    
+    const { soql, escapeSoql } = await import("@omnibridge/salesforce");
+
     const stripe = getStripeClient();
 
-    // Get current Stripe customer
     const customer = await stripe.customers.retrieve(stripeCustomerId);
     if (typeof customer === 'string' || customer.deleted) {
       return { success: false, error: "Stripe customer not found or deleted" };
     }
 
-    // If customer already has email, return success
     if (customer.email) {
       return { success: true, updatedEmail: customer.email };
     }
 
-    // Query SF Account for Bill_To_Email__c (the single source of truth)
     const accounts = await soql<{
       Id: string;
       Name: string;
@@ -42,7 +81,7 @@ export async function syncStripeCustomerEmail(
     }>(`
       SELECT Id, Name, Bill_To_Email__c 
       FROM Account 
-      WHERE Id = '${sfAccountId}' 
+      WHERE Id = '${escapeSoql(sfAccountId)}' 
       LIMIT 1
     `);
 
@@ -59,7 +98,6 @@ export async function syncStripeCustomerEmail(
       };
     }
 
-    // Update Stripe customer with email
     await stripe.customers.update(stripeCustomerId, {
       email: billingEmail,
     });
@@ -73,7 +111,19 @@ export async function syncStripeCustomerEmail(
 }
 
 /**
- * Validates that a Stripe customer has an email before quote acceptance
+ * Session-gated version for user-facing server actions.
+ */
+export async function syncStripeCustomerEmail(
+  stripeCustomerId: string,
+  sfAccountId: string,
+): Promise<SyncStripeCustomerEmailResult> {
+  await requireSession();
+  return syncEmailFromSalesforce(stripeCustomerId, sfAccountId);
+}
+
+/**
+ * Validates that a Stripe customer has an email before quote acceptance.
+ * Safe to call from webhooks (no session required).
  */
 export async function validateStripeCustomerEmail(
   stripeCustomerId: string,
@@ -83,7 +133,6 @@ export async function validateStripeCustomerEmail(
     const { getStripeClient } = await import("@omnibridge/stripe");
     const stripe = getStripeClient();
 
-    // Check if customer has email
     const customer = await stripe.customers.retrieve(stripeCustomerId);
     if (typeof customer === 'string' || customer.deleted) {
       return { success: false, error: "Stripe customer not found" };
@@ -93,8 +142,7 @@ export async function validateStripeCustomerEmail(
       return { success: true, updatedEmail: customer.email };
     }
 
-    // If no email, try to sync from Salesforce
-    return await syncStripeCustomerEmail(stripeCustomerId, sfAccountId);
+    return await syncEmailFromSalesforce(stripeCustomerId, sfAccountId);
 
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);

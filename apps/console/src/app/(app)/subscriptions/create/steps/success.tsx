@@ -109,7 +109,7 @@ function ResourceLink({
   href?: string;
 }) {
   return (
-    <div className="flex items-center justify-between rounded-lg border px-4 py-3">
+    <div className="flex items-center justify-between rounded-xl border px-4 py-3">
       <div className="flex flex-col gap-0.5">
         <span className="text-xs text-muted-foreground">{label}</span>
         <span className="text-sm font-mono">{id}</span>

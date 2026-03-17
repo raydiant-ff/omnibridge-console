@@ -32,13 +32,12 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+  CheckCircle2,
+  AlertTriangle as AlertTriangleIcon,
+  XCircle,
+  Clock,
+  MoreHorizontal,
+} from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -335,18 +334,15 @@ function DashboardContent({ data }: { data: SubscriptionDashboardData }) {
         </Card>
       </div>
 
-      {/* Row 3: Subscriptions Table */}
+      {/* Row 3: Subscriptions List */}
       <Card>
-        <CardHeader>
+        <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
-            <div>
-              <CardTitle className="text-base">All Subscriptions</CardTitle>
-              <CardDescription>
-                {statusFilter !== ALL
-                  ? `${filteredSubs.length} of ${totalSubscriptionCount} — ${formatStatusLabel(statusFilter)}`
-                  : `Top ${subscriptions.length} of ${totalSubscriptionCount} by MRR`}
-              </CardDescription>
-            </div>
+            <CardTitle className="text-base font-semibold">
+              {statusFilter !== ALL
+                ? `${filteredSubs.length} of ${totalSubscriptionCount} Subscriptions — ${formatStatusLabel(statusFilter)}`
+                : `Top ${subscriptions.length} of ${totalSubscriptionCount} by MRR`}
+            </CardTitle>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Filter by status" />
@@ -362,39 +358,18 @@ function DashboardContent({ data }: { data: SubscriptionDashboardData }) {
             </Select>
           </div>
         </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">MRR</TableHead>
-                  <TableHead>Period End</TableHead>
-                  <TableHead>Collection</TableHead>
-                  <TableHead>Products</TableHead>
-                  <TableHead>Flags</TableHead>
-                  <TableHead>Created</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sortedSubs.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="py-8 text-center text-sm text-muted-foreground"
-                    >
-                      No subscriptions match the current filter.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  sortedSubs.map((sub) => (
-                    <SubscriptionRow key={sub.id} sub={sub} />
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+        <CardContent className="p-0">
+          {sortedSubs.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              No subscriptions match the current filter.
+            </div>
+          ) : (
+            <div className="divide-y">
+              {sortedSubs.map((sub) => (
+                <SubscriptionRow key={sub.id} sub={sub} />
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -427,12 +402,12 @@ function KpiCard({
     <Card className={borderClass}>
       <CardContent className="flex items-start gap-4 pt-5">
         {icon && (
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg border bg-muted/50">
+          <div className="flex size-9 shrink-0 items-center justify-center rounded-xl border bg-muted/50">
             {icon}
           </div>
         )}
         <div className="flex flex-col gap-0.5">
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          <p className="text-xs font-medium text-muted-foreground">
             {title}
           </p>
           <p className="text-2xl font-bold tabular-nums tracking-tight">{value}</p>
@@ -443,6 +418,34 @@ function KpiCard({
   );
 }
 
+function subStatusIcon(status: string) {
+  switch (status) {
+    case "active":
+      return <CheckCircle2 className="size-5 text-emerald-500" />;
+    case "past_due":
+    case "unpaid":
+      return <AlertTriangleIcon className="size-5 text-red-400" />;
+    case "canceled":
+      return <XCircle className="size-5 text-muted-foreground" />;
+    default:
+      return <Clock className="size-5 text-muted-foreground" />;
+  }
+}
+
+function subTimeAgo(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 30) return `${diffDays}d ago`;
+  return formatDate(dateStr);
+}
+
 function SubscriptionRow({ sub }: { sub: DashboardSubscription }) {
   const productSummary =
     sub.items.length <= 2
@@ -450,32 +453,24 @@ function SubscriptionRow({ sub }: { sub: DashboardSubscription }) {
       : `${sub.items[0].productName} +${sub.items.length - 1} more`;
 
   return (
-    <TableRow>
-      <TableCell className="max-w-[200px] truncate font-medium">
-        {sub.customerName}
-      </TableCell>
-      <TableCell>
-        <Badge variant={STATUS_BADGE_VARIANT[sub.status] ?? "outline"}>
-          {formatStatusLabel(sub.status)}
-        </Badge>
-      </TableCell>
-      <TableCell className="text-right font-mono text-sm">
-        {formatCurrency(sub.mrr)}
-      </TableCell>
-      <TableCell className="text-sm text-muted-foreground">
-        {formatDate(sub.currentPeriodEnd)}
-      </TableCell>
-      <TableCell className="text-sm">
-        {formatCollectionMethod(sub.collectionMethod)}
-      </TableCell>
-      <TableCell
-        className="max-w-[200px] truncate text-sm text-muted-foreground"
-        title={sub.items.map((i) => i.productName).join(", ")}
-      >
-        {productSummary}
-      </TableCell>
-      <TableCell>
-        <div className="flex gap-1">
+    <div className="flex items-center gap-4 px-6 py-4 transition-colors hover:bg-muted/50 group">
+      {/* Status icon */}
+      <div className="shrink-0">
+        {subStatusIcon(sub.status)}
+      </div>
+
+      {/* Primary info */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-sm font-medium truncate max-w-[200px]">
+            {sub.customerName}
+          </span>
+          <span className="text-xs font-mono font-medium text-foreground tabular-nums">
+            {formatCurrency(sub.mrr)}
+          </span>
+          <Badge variant={STATUS_BADGE_VARIANT[sub.status] ?? "outline"} className="text-[10px]">
+            {formatStatusLabel(sub.status)}
+          </Badge>
           {sub.cancelAtPeriodEnd && (
             <Badge variant="destructive" className="text-[10px]">
               Canceling
@@ -492,10 +487,24 @@ function SubscriptionRow({ sub }: { sub: DashboardSubscription }) {
             </Badge>
           )}
         </div>
-      </TableCell>
-      <TableCell className="text-sm text-muted-foreground">
-        {formatDate(sub.created)}
-      </TableCell>
-    </TableRow>
+        <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
+          <span>{formatCollectionMethod(sub.collectionMethod)}</span>
+          <span>&middot;</span>
+          <span title={sub.items.map((i) => i.productName).join(", ")} className="truncate max-w-[300px]">
+            {productSummary}
+          </span>
+          <span>&middot;</span>
+          <span>ends {formatDate(sub.currentPeriodEnd)}</span>
+        </div>
+      </div>
+
+      {/* Right metadata */}
+      <div className="flex items-center gap-4 shrink-0">
+        <span className="text-xs text-muted-foreground whitespace-nowrap">
+          {subTimeAgo(sub.created)}
+        </span>
+        <MoreHorizontal className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
+    </div>
   );
 }

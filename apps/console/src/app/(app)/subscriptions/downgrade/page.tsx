@@ -1,15 +1,14 @@
 import { TrendingDown } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
+import { PageHeader } from "@/components/workspace/page-header";
 
 export default function DowngradePage() {
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Downgrade</h1>
-        <p className="text-sm text-muted-foreground">
-          Move a customer to a lower-tier plan or reduce quantities.
-        </p>
-      </div>
+      <PageHeader
+        title="Downgrade"
+        description="Move a customer to a lower-tier plan or reduce quantities."
+      />
 
       <Card>
         <CardContent className="flex flex-col items-center gap-4 py-16">

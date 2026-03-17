@@ -156,7 +156,7 @@ export function PickTerms({
         </div>
       </div>
 
-      <div className="rounded-lg border bg-muted/30 px-4 py-3">
+      <div className="rounded-xl border bg-muted/30 px-4 py-3">
         <p className="text-sm font-medium">{cycleSummary}</p>
         <div className="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
           <span>

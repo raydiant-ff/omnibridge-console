@@ -3,9 +3,8 @@
 import { useState } from "react";
 import { Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
+import { ReviewPanel, ReviewRow } from "@/components/omni/review-panel";
 import { formatCurrency } from "@/lib/format";
 import {
   executeCreateSubscription,
@@ -63,41 +62,26 @@ export function Review({ state, onBack, onResult }: Props) {
   const end = new Date(state.endDate);
 
   return (
-    <Card>
-      <CardContent className="flex flex-col gap-5 pt-6">
-        <div>
-          <h2 className="text-lg font-semibold">Review &amp; Confirm</h2>
-          <p className="text-sm text-muted-foreground">
-            Verify everything below, then execute to create the subscription.
-          </p>
-        </div>
+    <div className="flex flex-col gap-4">
+      {/* Header */}
+      <div>
+        <h2 className="text-lg font-semibold">Review &amp; Confirm</h2>
+        <p className="text-sm text-muted-foreground">
+          Verify everything below, then execute to create the subscription.
+        </p>
+      </div>
 
-        {/* Customer */}
-        <Section title="Customer">
-          <Row label="Account" value={state.customer?.sfAccountName ?? "—"} />
-          <Row label="Stripe ID" value={state.customer?.stripeCustomerId ?? "—"} mono />
-          <Row label="Domain" value={state.customer?.domain ?? "—"} />
-        </Section>
+      {/* Customer */}
+      <ReviewPanel title="Customer">
+        <ReviewRow label="Account" value={state.customer?.sfAccountName ?? "—"} />
+        <ReviewRow label="Stripe ID" value={state.customer?.stripeCustomerId ?? "—"} mono />
+        <ReviewRow label="Domain" value={state.customer?.domain ?? "—"} />
+      </ReviewPanel>
 
-        <Separator />
-
-        {/* Line items */}
-        <Section title="Prices">
-          {state.lineItems.map((li) => (
-            <div key={li.priceId} className="flex items-center justify-between">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-sm font-medium">{li.nickname}</span>
-                <span className="text-xs text-muted-foreground font-mono">{li.priceId}</span>
-              </div>
-              <div className="flex items-center gap-3 text-sm">
-                <Badge variant="outline">x{li.quantity}</Badge>
-                <span className="font-medium tabular-nums">
-                  {formatCurrency(li.unitAmount * li.quantity, li.currency)}/{li.interval}
-                </span>
-              </div>
-            </div>
-          ))}
-          <Separator />
+      {/* Prices */}
+      <ReviewPanel
+        title="Prices"
+        footer={
           <div className="flex items-center justify-between">
             <span className="text-sm font-medium">Total recurring</span>
             <span className="text-sm font-bold tabular-nums">
@@ -105,107 +89,82 @@ export function Review({ state, onBack, onResult }: Props) {
               {state.lineItems[0]?.interval ?? "month"}
             </span>
           </div>
-        </Section>
-
-        <Separator />
-
-        {/* Dates */}
-        <Section title="Period">
-          <Row label="Start" value={formatDT(start)} />
-          <Row label="End" value={formatDT(end)} />
-          {start < new Date() && (
-            <div className="flex items-center gap-1.5 text-xs text-amber-600">
-              <AlertTriangle className="size-3" />
-              Backdated — start date is in the past.
+        }
+      >
+        {state.lineItems.map((li) => (
+          <div key={li.priceId} className="flex items-center justify-between py-1.5">
+            <div className="flex flex-col gap-0.5">
+              <span className="text-sm font-medium">{li.nickname}</span>
+              <span className="text-xs text-muted-foreground font-mono">{li.priceId}</span>
             </div>
-          )}
-        </Section>
+            <div className="flex items-center gap-3 text-sm">
+              <Badge variant="outline">x{li.quantity}</Badge>
+              <span className="font-medium tabular-nums">
+                {formatCurrency(li.unitAmount * li.quantity, li.currency)}/{li.interval}
+              </span>
+            </div>
+          </div>
+        ))}
+      </ReviewPanel>
 
-        <Separator />
-
-        {/* Billing */}
-        <Section title="Billing">
-          {state.billingMode === "now" ? (
-            <Row label="Invoice timing" value="Bill immediately on start" />
-          ) : (
-            <>
-              <Row label="Invoice timing" value="Deferred billing" />
-              <Row label="First invoice date" value={formatDT(new Date(state.billingDate))} />
-            </>
-          )}
-        </Section>
-
-        <Separator />
-
-        {/* Idempotency */}
-        <div className="rounded-lg bg-muted/50 px-4 py-3">
-          <p className="text-xs text-muted-foreground">
-            Idempotency key:{" "}
-            <code className="font-mono">{state.idempotencyKey}</code>
-          </p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Safe to retry — duplicate submissions will return the same result.
-          </p>
-        </div>
-
-        {/* Error */}
-        {error && (
-          <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {error}
+      {/* Period */}
+      <ReviewPanel title="Period">
+        <ReviewRow label="Start" value={formatDT(start)} />
+        <ReviewRow label="End" value={formatDT(end)} />
+        {start < new Date() && (
+          <div className="flex items-center gap-1.5 text-xs text-amber-600 mt-1">
+            <AlertTriangle className="size-3" />
+            Backdated — start date is in the past.
           </div>
         )}
+      </ReviewPanel>
 
-        {/* Actions */}
-        <div className="flex justify-between pt-2">
-          <Button variant="outline" onClick={onBack} disabled={isExecuting}>
-            Back
-          </Button>
-          <Button onClick={handleExecute} disabled={isExecuting}>
-            {isExecuting ? (
-              <>
-                <Loader2 className="animate-spin" />
-                Creating…
-              </>
-            ) : (
-              "Execute"
-            )}
-          </Button>
+      {/* Billing */}
+      <ReviewPanel title="Billing">
+        {state.billingMode === "now" ? (
+          <ReviewRow label="Invoice timing" value="Bill immediately on start" />
+        ) : (
+          <>
+            <ReviewRow label="Invoice timing" value="Deferred billing" />
+            <ReviewRow label="First invoice date" value={formatDT(new Date(state.billingDate))} />
+          </>
+        )}
+      </ReviewPanel>
+
+      {/* Idempotency */}
+      <div className="rounded-xl bg-muted/50 px-4 py-3">
+        <p className="text-xs text-muted-foreground">
+          Idempotency key:{" "}
+          <code className="font-mono">{state.idempotencyKey}</code>
+        </p>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Safe to retry — duplicate submissions will return the same result.
+        </p>
+      </div>
+
+      {/* Error */}
+      {error && (
+        <div className="rounded-md border border-destructive/50 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {error}
         </div>
-      </CardContent>
-    </Card>
-  );
-}
+      )}
 
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-3">
-      <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-        {title}
-      </h3>
-      {children}
-    </div>
-  );
-}
-
-function Row({
-  label,
-  value,
-  mono,
-}: {
-  label: string;
-  value: string;
-  mono?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className={mono ? "font-mono text-xs" : "font-medium"}>{value}</span>
+      {/* Actions */}
+      <div className="flex justify-between pt-2">
+        <Button variant="outline" onClick={onBack} disabled={isExecuting}>
+          Back
+        </Button>
+        <Button onClick={handleExecute} disabled={isExecuting}>
+          {isExecuting ? (
+            <>
+              <Loader2 className="animate-spin" />
+              Creating…
+            </>
+          ) : (
+            "Execute"
+          )}
+        </Button>
+      </div>
     </div>
   );
 }

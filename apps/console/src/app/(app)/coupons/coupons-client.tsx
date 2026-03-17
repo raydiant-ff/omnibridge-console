@@ -4,26 +4,19 @@ import { useState, useTransition, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
-  Ticket,
   Trash2,
   Loader2,
   Plus,
   Search,
   Percent,
   DollarSign,
+  MoreHorizontal,
+  Tag,
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Select,
   SelectContent,
@@ -34,7 +27,6 @@ import {
 import { Label } from "@/components/ui/label";
 import type { StripeCoupon } from "@/lib/queries/stripe-coupons";
 import { createCoupon, deleteCoupon } from "@/lib/actions/coupons";
-import { formatDate } from "@/lib/format";
 
 interface Props {
   initialCoupons: StripeCoupon[];
@@ -92,45 +84,28 @@ export function CouponsClient({ initialCoupons }: Props) {
       )}
 
       <Card>
-        <CardHeader className="border-b">
-          <CardTitle>Coupons ({filtered.length})</CardTitle>
+        <CardHeader className="pb-4">
+          <CardTitle className="text-base font-semibold">
+            Coupons ({filtered.length})
+          </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name / ID</TableHead>
-                <TableHead>Discount</TableHead>
-                <TableHead>Duration</TableHead>
-                <TableHead>Redemptions</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Applies To</TableHead>
-                <TableHead>Created</TableHead>
-                {isAdmin && <TableHead className="w-12" />}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={isAdmin ? 8 : 7}
-                    className="py-8 text-center text-sm text-muted-foreground"
-                  >
-                    No coupons found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                filtered.map((c) => (
-                  <CouponRow
-                    key={c.id}
-                    coupon={c}
-                    isAdmin={isAdmin}
-                    onDeleted={() => router.refresh()}
-                  />
-                ))
-              )}
-            </TableBody>
-          </Table>
+          {filtered.length === 0 ? (
+            <div className="py-12 text-center text-sm text-muted-foreground">
+              No coupons found.
+            </div>
+          ) : (
+            <div className="divide-y">
+              {filtered.map((c) => (
+                <CouponRow
+                  key={c.id}
+                  coupon={c}
+                  isAdmin={isAdmin}
+                  onDeleted={() => router.refresh()}
+                />
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -162,7 +137,7 @@ function CouponRow({
     ? `${coupon.percentOff}% off`
     : coupon.amountOff
       ? `$${(coupon.amountOff / 100).toFixed(2)} off`
-      : "—";
+      : "---";
 
   const durationLabel =
     coupon.duration === "forever"
@@ -171,48 +146,53 @@ function CouponRow({
         ? "Once"
         : `${coupon.durationInMonths} months`;
 
+  const appliesToLabel =
+    coupon.appliesTo && coupon.appliesTo.length > 0
+      ? `${coupon.appliesTo.length} product${coupon.appliesTo.length > 1 ? "s" : ""}`
+      : "All products";
+
   return (
-    <TableRow>
-      <TableCell>
-        <div className="flex flex-col gap-0.5">
+    <div className="flex items-center gap-4 px-6 py-4 transition-colors hover:bg-muted/50 group">
+      {/* Status icon */}
+      <div className="shrink-0">
+        <Tag className={`size-5 ${coupon.valid ? "text-emerald-500" : "text-muted-foreground"}`} />
+      </div>
+
+      {/* Primary info */}
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2 flex-wrap">
           <span className="text-sm font-medium">
             {coupon.name ?? "Unnamed"}
           </span>
-          <span className="font-mono text-xs text-muted-foreground">
-            {coupon.id}
+          <Badge variant="outline" className="font-mono text-[10px]">
+            {coupon.percentOff ? (
+              <Percent className="mr-1 size-3" />
+            ) : (
+              <DollarSign className="mr-1 size-3" />
+            )}
+            {discountLabel}
+          </Badge>
+          <Badge variant={coupon.valid ? "default" : "secondary"} className="text-[10px]">
+            {coupon.valid ? "Active" : "Expired"}
+          </Badge>
+        </div>
+        <div className="flex items-center gap-1.5 mt-0.5 text-xs text-muted-foreground">
+          <span className="font-mono">{coupon.id}</span>
+          <span>&middot;</span>
+          <span>{durationLabel}</span>
+          <span>&middot;</span>
+          <span className="tabular-nums">
+            {coupon.timesRedeemed}
+            {coupon.maxRedemptions ? ` / ${coupon.maxRedemptions}` : ""}{" "}
+            redemptions
           </span>
         </div>
-      </TableCell>
-      <TableCell>
-        <Badge variant="outline" className="font-mono text-xs">
-          {coupon.percentOff ? (
-            <Percent className="mr-1 size-3" />
-          ) : (
-            <DollarSign className="mr-1 size-3" />
-          )}
-          {discountLabel}
-        </Badge>
-      </TableCell>
-      <TableCell className="text-sm">{durationLabel}</TableCell>
-      <TableCell className="text-sm tabular-nums">
-        {coupon.timesRedeemed}
-        {coupon.maxRedemptions ? ` / ${coupon.maxRedemptions}` : ""}
-      </TableCell>
-      <TableCell>
-        <Badge variant={coupon.valid ? "default" : "secondary"}>
-          {coupon.valid ? "Active" : "Expired"}
-        </Badge>
-      </TableCell>
-      <TableCell className="text-sm">
-        {coupon.appliesTo && coupon.appliesTo.length > 0
-          ? `${coupon.appliesTo.length} product${coupon.appliesTo.length > 1 ? "s" : ""}`
-          : "All products"}
-      </TableCell>
-      <TableCell className="text-sm text-muted-foreground">
-        {formatDate(coupon.created)}
-      </TableCell>
-      {isAdmin && (
-        <TableCell>
+      </div>
+
+      {/* Right metadata */}
+      <div className="flex items-center gap-3 shrink-0">
+        <span className="text-xs text-muted-foreground">{appliesToLabel}</span>
+        {isAdmin && (
           <Button
             variant="ghost"
             size="sm"
@@ -226,9 +206,10 @@ function CouponRow({
               <Trash2 className="size-3.5" />
             )}
           </Button>
-        </TableCell>
-      )}
-    </TableRow>
+        )}
+        <MoreHorizontal className="size-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+      </div>
+    </div>
   );
 }
 

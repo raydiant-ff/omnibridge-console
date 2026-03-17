@@ -326,7 +326,7 @@ export function PickBillToContact({ sfAccountId, billToContactId, onChange, onNe
               {contacts.map((contact) => (
                 <div
                   key={contact.id}
-                  className={`border rounded-lg p-4 cursor-pointer transition-colors ${
+                  className={`border rounded-xl p-4 cursor-pointer transition-colors ${
                     selectedContactId === contact.id
                       ? "border-primary bg-primary/5"
                       : "border-border hover:border-primary/50"

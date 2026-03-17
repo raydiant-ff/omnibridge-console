@@ -196,7 +196,7 @@ export function PickCustomer({
         <div className="flex flex-col gap-2">
 
           {selected ? (
-            <div className="flex items-center justify-between rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+            <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
               <div className="flex flex-col gap-0.5">
                 <span className="text-sm font-medium">
                   {selected.sfAccountName ?? "---"}
@@ -279,7 +279,7 @@ export function PickCustomer({
                       key={c.id}
                       type="button"
                       onClick={() => handleCustomerSelect(c)}
-                      className="flex w-full items-center justify-between rounded-lg border px-4 py-3 text-left transition-colors hover:bg-muted/50"
+                      className="flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors hover:bg-muted/50"
                     >
                       <div className="flex flex-col gap-0.5">
                         <span className="text-sm font-medium">{c.name}</span>
@@ -447,7 +447,7 @@ export function PickCustomer({
                 Loading contacts...
               </div>
             ) : billToContact ? (
-              <div className="flex items-center justify-between rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+              <div className="flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-3">
                 <div className="flex flex-col gap-0.5">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium">
@@ -514,7 +514,7 @@ export function PickCustomer({
               <button
                 type="button"
                 onClick={() => onContractModeChange("new_contract")}
-                className={`flex flex-col gap-1 rounded-lg border-2 px-4 py-3 text-left transition-colors ${
+                className={`flex flex-col gap-1 rounded-xl border-2 px-4 py-3 text-left transition-colors ${
                   contractMode === "new_contract"
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-primary/40"
@@ -529,7 +529,7 @@ export function PickCustomer({
               <button
                 type="button"
                 onClick={() => onContractModeChange("co_term")}
-                className={`flex flex-col gap-1 rounded-lg border-2 px-4 py-3 text-left transition-colors ${
+                className={`flex flex-col gap-1 rounded-xl border-2 px-4 py-3 text-left transition-colors ${
                   contractMode === "co_term"
                     ? "border-primary bg-primary/5"
                     : "border-border hover:border-primary/40"

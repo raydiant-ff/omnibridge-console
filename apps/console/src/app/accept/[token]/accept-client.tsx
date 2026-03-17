@@ -445,7 +445,7 @@ export function AcceptQuoteClient({
           {!isTerminal && !accepted && !signingReady && !showCheckout && (
             <>
               <div className="space-y-2">
-                <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                <h3 className="text-sm font-medium text-muted-foreground">
                   Items
                 </h3>
                 {lineItems.map((li, idx) => (
@@ -521,7 +521,7 @@ export function AcceptQuoteClient({
               <div
                 id="docusign-signing-container"
                 ref={signingContainerRef}
-                className="min-h-[620px] overflow-hidden rounded-lg border"
+                className="min-h-[620px] overflow-hidden rounded-xl border"
               />
               {documentSigned && (
                 <div className="flex items-center justify-center gap-2 py-2 text-sm text-green-600">
@@ -535,7 +535,7 @@ export function AcceptQuoteClient({
           {/* Embedded Stripe Checkout */}
           {showCheckout && (
             <div className="flex flex-col gap-4">
-              <div className="rounded-lg border bg-muted/20 px-4 py-3">
+              <div className="rounded-xl border bg-muted/20 px-4 py-3">
                 <div className="flex items-center gap-2 text-sm">
                   <CreditCard className="size-4 text-primary" />
                   <span className="font-medium">
@@ -597,15 +597,15 @@ export function AcceptQuoteClient({
               <div className="flex flex-col gap-3">
                 <div className="flex items-center gap-2">
                   <ScrollText className="size-4 text-muted-foreground" />
-                  <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  <span className="text-sm font-medium text-muted-foreground">
                     Terms of Use
                   </span>
                 </div>
                 <div
                   ref={termsRef}
-                  className="max-h-48 overflow-y-auto rounded-lg border bg-muted/20 px-4 py-3 text-xs leading-relaxed text-muted-foreground"
+                  className="max-h-48 overflow-y-auto rounded-xl border bg-muted/20 px-4 py-3 text-xs leading-relaxed text-muted-foreground"
                 >
-                  <p className="mb-3 text-center font-semibold uppercase tracking-wide text-foreground">
+                  <p className="mb-3 text-center font-semibold text-foreground">
                     Terms of Use
                   </p>
 
@@ -711,7 +711,7 @@ export function AcceptQuoteClient({
                 )}
 
                 <label
-                  className={`flex items-start gap-2.5 rounded-lg border px-4 py-3 transition-colors ${
+                  className={`flex items-start gap-2.5 rounded-xl border px-4 py-3 transition-colors ${
                     hasScrolledTerms
                       ? "cursor-pointer hover:bg-muted/30"
                       : "cursor-not-allowed opacity-50"

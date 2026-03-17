@@ -5,6 +5,7 @@ import { detectSfdcProductChanges } from "@/lib/sfdc-product-poller";
 import { revalidateProducts } from "@/lib/actions/revalidate";
 import { RefreshButton } from "@/components/refresh-button";
 import { ProductCatalogTabs } from "./product-tabs";
+import { PageHeader } from "@/components/workspace";
 
 async function getSessionRole(): Promise<string> {
   try {
@@ -33,15 +34,11 @@ export default async function ProductCatalogPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Product Catalog</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage products across Salesforce and Stripe.
-          </p>
-        </div>
-        <RefreshButton action={revalidateProducts} />
-      </div>
+      <PageHeader
+        title="Product Catalog"
+        description="Manage products across Salesforce and Stripe."
+        actions={<RefreshButton action={revalidateProducts} />}
+      />
 
       <ProductCatalogTabs
         stripeProducts={stripeProducts}

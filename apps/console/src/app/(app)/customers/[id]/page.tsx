@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { ChevronRight, ExternalLink } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { getAccountDetailById } from "@/lib/queries/customers";
 import { getStripeCustomerDetail } from "@/lib/queries/stripe-customer-detail";
 import type { StripeCustomerDetail } from "@/lib/queries/stripe-customer-detail";
@@ -14,6 +14,14 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Breadcrumb,
+  PageHeader,
+  DetailGrid,
+  Section,
+  FieldRow,
+  EmptyState,
+} from "@/components/workspace";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -115,170 +123,153 @@ export default async function CustomerDetailPage({ params }: Props) {
   const billingFormatted = formatAddress(account.billingAddress);
 
   return (
-    <div className="flex flex-col gap-8">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1 text-sm text-muted-foreground">
-        <Link
-          href="/customers"
-          className="transition-colors hover:text-foreground"
-        >
-          Customers
-        </Link>
-        <ChevronRight className="size-3.5" />
-        <span className="font-medium text-foreground">{account.name}</span>
-      </nav>
+    <div className="flex flex-col gap-6">
+      <Breadcrumb
+        items={[
+          { label: "Customers", href: "/customers" },
+          { label: account.name },
+        ]}
+      />
 
-      {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {account.name}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {[account.industry, account.type].filter(Boolean).join(" · ")}
-          </p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-1.5 px-2" asChild>
-            <a href={sfUrl} target="_blank" rel="noopener noreferrer">
-              { /* eslint-disable-next-line @next/next/no-img-element */ }
-              <img src="/images/salesforce-logo.svg" alt="Salesforce" className="h-6 w-auto" />
-              <ExternalLink className="size-3.5" />
-            </a>
-          </Button>
-          {stripeUrl ? (
+      <PageHeader
+        title={account.name}
+        description={[account.industry, account.type].filter(Boolean).join(" \u00b7 ")}
+        actions={
+          <>
+            <Button variant="default" size="sm" asChild>
+              <Link href={`/customers/${id}/360`}>360 View</Link>
+            </Button>
             <Button variant="outline" size="sm" className="gap-1.5 px-2" asChild>
-              <a href={stripeUrl} target="_blank" rel="noopener noreferrer">
+              <a href={sfUrl} target="_blank" rel="noopener noreferrer">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src="/images/stripe-logo.svg" alt="Stripe" className="h-6 w-auto" />
+                <img src="/images/salesforce-logo.svg" alt="Salesforce" className="h-6 w-auto" />
                 <ExternalLink className="size-3.5" />
               </a>
             </Button>
-          ) : (
-            <Button variant="ghost" size="sm" className="px-2 opacity-30" disabled>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/images/stripe-logo.svg" alt="Stripe" className="h-6 w-auto opacity-30" />
-            </Button>
-          )}
-        </div>
-      </div>
+            {stripeUrl ? (
+              <Button variant="outline" size="sm" className="gap-1.5 px-2" asChild>
+                <a href={stripeUrl} target="_blank" rel="noopener noreferrer">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/images/stripe-logo.svg" alt="Stripe" className="h-6 w-auto" />
+                  <ExternalLink className="size-3.5" />
+                </a>
+              </Button>
+            ) : (
+              <Button variant="ghost" size="sm" className="px-2 opacity-30" disabled>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/images/stripe-logo.svg" alt="Stripe" className="h-6 w-auto opacity-30" />
+              </Button>
+            )}
+          </>
+        }
+      />
 
-      {/* ────── Salesforce ────── */}
+      {/* Salesforce */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/images/salesforce-logo.svg" alt="Salesforce" className="h-7 w-auto" />
         </div>
-        <div className="grid gap-6 lg:grid-cols-2">
+        <DetailGrid columns={2}>
           <Section title="Details">
-            <Field label="Name" value={account.name} />
-            <Field label="Links">
-              <LinkButtons sfUrl={sfUrl} stripeUrl={stripeUrl} />
-            </Field>
-            <Field
-              label="First Closed Won"
-              value={fmtDate(account.dateOfFirstClosedWon)}
-            />
-            <Field label="Account Value (MRR)">
-              <span className="font-mono">
-                {fmtCurrency(account.accountValue)}
-              </span>
-            </Field>
-            <Field label="Total ARR">
-              <span className="font-mono">
-                {fmtCurrency(account.totalArr)}
-              </span>
-            </Field>
-            <Field label="Lifetime Value">
-              <span className="font-mono">
-                {fmtCurrency(account.lifetimeValue)}
-              </span>
-            </Field>
+            <FieldRow label="Name" value={account.name} />
+            <FieldRow label="Links">
+              <div className="flex items-center gap-1.5">
+                <Button variant="outline" size="sm" className="h-7 gap-1 px-2" asChild>
+                  <a href={sfUrl} target="_blank" rel="noopener noreferrer">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/images/salesforce-logo.svg" alt="Salesforce" className="h-5 w-auto" />
+                    <ExternalLink className="size-3" />
+                  </a>
+                </Button>
+                {stripeUrl ? (
+                  <Button variant="outline" size="sm" className="h-7 gap-1 px-2" asChild>
+                    <a href={stripeUrl} target="_blank" rel="noopener noreferrer">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src="/images/stripe-logo.svg" alt="Stripe" className="h-5 w-auto" />
+                      <ExternalLink className="size-3" />
+                    </a>
+                  </Button>
+                ) : (
+                  <Button variant="ghost" size="sm" className="h-7 px-2 opacity-30" disabled>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/images/stripe-logo.svg" alt="Stripe" className="h-5 w-auto opacity-30" />
+                  </Button>
+                )}
+              </div>
+            </FieldRow>
+            <FieldRow label="First Closed Won" value={fmtDate(account.dateOfFirstClosedWon)} />
+            <FieldRow label="Account Value (MRR)" mono value={fmtCurrency(account.accountValue)} />
+            <FieldRow label="Total ARR" mono value={fmtCurrency(account.totalArr)} />
+            <FieldRow label="Lifetime Value" mono value={fmtCurrency(account.lifetimeValue)} />
           </Section>
 
           <Section title="AR">
-            <Field label="Outstanding AR">
-              <span className="font-mono">
-                {fmtCurrency(account.outstandingAr)}
-              </span>
-            </Field>
-            <Field label="AR Status">
+            <FieldRow label="Outstanding AR" mono value={fmtCurrency(account.outstandingAr)} />
+            <FieldRow label="AR Status">
               {account.arStatus ? (
                 <Badge
-                  variant={
-                    account.arStatus === "Current" ? "default" : "destructive"
-                  }
+                  variant={account.arStatus === "Current" ? "default" : "destructive"}
                 >
                   {account.arStatus}
                 </Badge>
               ) : (
                 <span className="text-muted-foreground">—</span>
               )}
-            </Field>
+            </FieldRow>
           </Section>
 
           <Section title="Contacts & Addresses">
-            <Field label="Primary Contact" value={account.primaryContactName} />
-            <Field
-              label="Primary Contact Email"
-              value={account.primaryContactEmail}
-            />
-            <Field label="Dashboard Email" value={account.dashboardEmail} />
-            <Field label="Bill To Contact" value={account.billToContactName} />
-            <Field label="Bill To Email" value={account.billToEmail} />
-            <Field label="Shipping Address">
+            <FieldRow label="Primary Contact" value={account.primaryContactName} />
+            <FieldRow label="Primary Contact Email" value={account.primaryContactEmail} />
+            <FieldRow label="Dashboard Email" value={account.dashboardEmail} />
+            <FieldRow label="Bill To Contact" value={account.billToContactName} />
+            <FieldRow label="Bill To Email" value={account.billToEmail} />
+            <FieldRow label="Shipping Address">
               {shippingFormatted ? (
-                <span className="whitespace-pre-line text-sm">
-                  {shippingFormatted}
-                </span>
+                <span className="whitespace-pre-line text-sm">{shippingFormatted}</span>
               ) : (
                 <span className="text-muted-foreground">—</span>
               )}
-            </Field>
-            <Field label="Billing Address">
+            </FieldRow>
+            <FieldRow label="Billing Address">
               {billingFormatted ? (
-                <span className="whitespace-pre-line text-sm">
-                  {billingFormatted}
-                </span>
+                <span className="whitespace-pre-line text-sm">{billingFormatted}</span>
               ) : (
                 <span className="text-muted-foreground">—</span>
               )}
-            </Field>
+            </FieldRow>
           </Section>
 
           <Section title="Customer Success">
-            <Field label="Account Notes">
+            <FieldRow label="Account Notes">
               {account.accountNotes ? (
-                <p className="whitespace-pre-wrap text-sm">
-                  {account.accountNotes}
-                </p>
+                <p className="whitespace-pre-wrap text-sm">{account.accountNotes}</p>
               ) : (
                 <span className="text-muted-foreground">—</span>
               )}
-            </Field>
-            <Field label="Additional Notes" value={account.churnDetails} />
-            <Field label="AR Notes" value={account.arNotes} />
-            <Field label="CSM Health Update">
+            </FieldRow>
+            <FieldRow label="Additional Notes" value={account.churnDetails} />
+            <FieldRow label="AR Notes" value={account.arNotes} />
+            <FieldRow label="CSM Health Update">
               {account.latestHealthUpdate ? (
-                <p className="whitespace-pre-wrap text-sm">
-                  {account.latestHealthUpdate}
-                </p>
+                <p className="whitespace-pre-wrap text-sm">{account.latestHealthUpdate}</p>
               ) : (
                 <span className="text-muted-foreground">—</span>
               )}
-            </Field>
+            </FieldRow>
           </Section>
-        </div>
+        </DetailGrid>
       </div>
 
-      {/* ────── Stripe ────── */}
+      {/* Stripe */}
       <div className="flex flex-col gap-4">
         <div className="flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/images/stripe-logo.svg" alt="Stripe" className="h-7 w-auto" />
         </div>
         {!stripeDetail ? (
-          <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed py-12 text-center">
+          <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed py-12 text-center">
             <p className="text-sm font-medium">No Stripe data available</p>
             <p className="text-sm text-muted-foreground">
               {account.stripeCustomerId
@@ -287,12 +278,12 @@ export default async function CustomerDetailPage({ params }: Props) {
             </p>
           </div>
         ) : (
-          <div className="grid gap-6 lg:grid-cols-2">
+          <DetailGrid columns={2}>
             <SubscriptionsBlock subscriptions={stripeDetail.subscriptions} />
             <PaymentsBlock payments={stripeDetail.payments} />
             <InvoicesBlock invoices={stripeDetail.invoices} />
             <ActivityBlock events={stripeDetail.recentActivity} />
-          </div>
+          </DetailGrid>
         )}
       </div>
     </div>
@@ -309,7 +300,7 @@ function SubscriptionsBlock({
   return (
     <Section title={`Subscriptions (${subscriptions.length})`}>
       {subscriptions.length === 0 ? (
-        <EmptyRow>No subscriptions</EmptyRow>
+        <EmptyState title="No subscriptions" />
       ) : (
         <div className="divide-y">
           {subscriptions.map((sub) => (
@@ -326,9 +317,9 @@ function SubscriptionsBlock({
                 </a>
                 <Badge variant={statusVariant(sub.status)}>{sub.status}</Badge>
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-foreground">
                 {fmtDate(sub.currentPeriodStart)} → {fmtDate(sub.currentPeriodEnd)}
-                {sub.cancelAtPeriodEnd && " (cancels at period end)"}
+                {sub.cancelAtPeriodEnd && <span className="text-muted-foreground"> (cancels at period end)</span>}
               </p>
               {sub.items.length > 0 && (
                 <div className="overflow-x-auto rounded border">
@@ -350,7 +341,7 @@ function SubscriptionsBlock({
                           <TableCell className="text-right text-xs">
                             {item.quantity ?? 1}
                           </TableCell>
-                          <TableCell className="text-right font-mono text-xs">
+                          <TableCell className="text-right font-mono text-xs font-medium">
                             {fmtCents(item.amount, item.currency)}
                           </TableCell>
                           <TableCell className="text-right text-xs">
@@ -378,7 +369,7 @@ function PaymentsBlock({
   return (
     <Section title={`Payments (${payments.length})`}>
       {payments.length === 0 ? (
-        <EmptyRow>No payments</EmptyRow>
+        <EmptyState title="No payments" />
       ) : (
         <div className="overflow-x-auto">
           <Table>
@@ -397,7 +388,7 @@ function PaymentsBlock({
                   <TableCell className="whitespace-nowrap text-xs">
                     {fmtDate(p.created)}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-xs">
+                  <TableCell className="text-right font-mono text-xs font-medium">
                     {fmtCents(p.amount, p.currency)}
                   </TableCell>
                   <TableCell>
@@ -405,7 +396,7 @@ function PaymentsBlock({
                       {p.status}
                     </Badge>
                   </TableCell>
-                  <TableCell className="max-w-[180px] truncate text-xs text-muted-foreground">
+                  <TableCell className={`max-w-[180px] truncate text-xs ${p.description ? "text-foreground" : "text-muted-foreground"}`}>
                     {p.description ?? "—"}
                   </TableCell>
                   <TableCell>
@@ -436,7 +427,7 @@ function InvoicesBlock({
   return (
     <Section title={`Invoices (${invoices.length})`}>
       {invoices.length === 0 ? (
-        <EmptyRow>No invoices</EmptyRow>
+        <EmptyState title="No invoices" />
       ) : (
         <div className="overflow-x-auto">
           <Table>
@@ -459,10 +450,10 @@ function InvoicesBlock({
                   <TableCell className="whitespace-nowrap text-xs">
                     {fmtDate(inv.created)}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-xs">
+                  <TableCell className="text-right font-mono text-xs font-medium">
                     {fmtCents(inv.amountDue, inv.currency)}
                   </TableCell>
-                  <TableCell className="text-right font-mono text-xs">
+                  <TableCell className="text-right font-mono text-xs font-medium">
                     {fmtCents(inv.amountPaid, inv.currency)}
                   </TableCell>
                   <TableCell>
@@ -474,25 +465,14 @@ function InvoicesBlock({
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {inv.hostedInvoiceUrl ? (
-                      <a
-                        href={inv.hostedInvoiceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        <ExternalLink className="size-3.5" />
-                      </a>
-                    ) : (
-                      <a
-                        href={`https://dashboard.stripe.com/invoices/${inv.id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-muted-foreground hover:text-foreground"
-                      >
-                        <ExternalLink className="size-3.5" />
-                      </a>
-                    )}
+                    <a
+                      href={inv.hostedInvoiceUrl ?? `https://dashboard.stripe.com/invoices/${inv.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-muted-foreground hover:text-foreground"
+                    >
+                      <ExternalLink className="size-3.5" />
+                    </a>
                   </TableCell>
                 </TableRow>
               ))}
@@ -512,7 +492,7 @@ function ActivityBlock({
   return (
     <Section title="Recent Activity">
       {events.length === 0 ? (
-        <EmptyRow>No recent activity</EmptyRow>
+        <EmptyState title="No recent activity" />
       ) : (
         <div className="divide-y">
           {events.map((evt) => (
@@ -532,98 +512,5 @@ function ActivityBlock({
         </div>
       )}
     </Section>
-  );
-}
-
-/* ─── Shared components ─── */
-
-function Section({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-lg border">
-      <div className="border-b bg-muted/40 px-4 py-3">
-        <h3 className="text-sm font-semibold">{title}</h3>
-      </div>
-      <div>{children}</div>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  value,
-  children,
-}: {
-  label: string;
-  value?: string | null;
-  children?: React.ReactNode;
-}) {
-  return (
-    <div className="flex flex-col gap-1 border-b px-4 py-3 last:border-b-0 sm:flex-row sm:items-start sm:gap-4">
-      <dt className="min-w-[160px] shrink-0 text-sm font-medium text-muted-foreground">
-        {label}
-      </dt>
-      <dd className="text-sm">
-        {children ??
-          (value ? value : <span className="text-muted-foreground">—</span>)}
-      </dd>
-    </div>
-  );
-}
-
-function LinkButtons({
-  sfUrl,
-  stripeUrl,
-}: {
-  sfUrl: string;
-  stripeUrl: string | null;
-}) {
-  return (
-    <div className="flex items-center gap-1.5">
-      <Button
-        variant="outline"
-        size="sm"
-        className="h-7 gap-1 px-2"
-        asChild
-      >
-        <a href={sfUrl} target="_blank" rel="noopener noreferrer">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/salesforce-logo.svg" alt="Salesforce" className="h-5 w-auto" />
-          <ExternalLink className="size-3" />
-        </a>
-      </Button>
-      {stripeUrl ? (
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-7 gap-1 px-2"
-          asChild
-        >
-          <a href={stripeUrl} target="_blank" rel="noopener noreferrer">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/images/stripe-logo.svg" alt="Stripe" className="h-5 w-auto" />
-            <ExternalLink className="size-3" />
-          </a>
-        </Button>
-      ) : (
-        <Button variant="ghost" size="sm" className="h-7 px-2 opacity-30" disabled>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/images/stripe-logo.svg" alt="Stripe" className="h-5 w-auto opacity-30" />
-        </Button>
-      )}
-    </div>
-  );
-}
-
-function EmptyRow({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="px-4 py-8 text-center text-sm text-muted-foreground">
-      {children}
-    </div>
   );
 }
