@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { searchCustomersUnified } from "@/lib/queries/customers";
 import { SearchForm } from "./search-form";

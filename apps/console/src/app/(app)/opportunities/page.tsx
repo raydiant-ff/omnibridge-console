@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { getDashboardOpportunities } from "@/lib/queries/opportunities";
 import { DashboardCharts } from "./dashboard-charts";
 import { PageHeader } from "@/components/workspace/page-header";

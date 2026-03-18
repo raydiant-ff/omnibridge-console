@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { getAllQuotes, type QuoteRow } from "@/lib/queries/quotes";
 import { QuoteListTable } from "../quote-list-table";
 import { PageHeader } from "@/components/workspace/page-header";

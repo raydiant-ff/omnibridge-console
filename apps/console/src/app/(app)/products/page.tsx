@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { fetchStripeProducts } from "@/lib/queries/stripe-products";
 import { fetchSfdcProducts } from "@/lib/queries/sfdc-products";
 import { getProductLogs } from "@/lib/queries/product-logs";

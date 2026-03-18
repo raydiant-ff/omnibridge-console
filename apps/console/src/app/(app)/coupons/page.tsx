@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { fetchStripeCoupons } from "@/lib/queries/stripe-coupons";
 import { CouponsClient } from "./coupons-client";
 import { PageHeader } from "@/components/workspace";

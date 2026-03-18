@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { getRenewalCandidates } from "@/lib/queries/cs-renewals";
 import { RenewalsDashboard } from "./renewals-dashboard";
 

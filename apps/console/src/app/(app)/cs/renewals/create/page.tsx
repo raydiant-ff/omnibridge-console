@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { prisma } from "@omnibridge/db";
 import { notFound } from "next/navigation";
 import { getCustomerSubscriptions } from "@/lib/queries/customer-subscriptions";

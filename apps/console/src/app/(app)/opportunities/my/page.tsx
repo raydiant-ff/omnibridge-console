@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { getMyOpportunitySignals } from "@/lib/queries/opportunity-signals";
 import { PageHeader } from "@/components/workspace/page-header";
 import { OpportunityExplorer } from "./opportunity-explorer";

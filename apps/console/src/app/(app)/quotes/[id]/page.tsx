@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { notFound } from "next/navigation";
 import { getQuoteDetail, getQuoteAuditTimeline } from "@/lib/queries/quotes";
 import { QuoteDetailView } from "./quote-detail";

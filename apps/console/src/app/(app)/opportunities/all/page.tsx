@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { getAllOpportunitiesAdmin, type OpportunityRow } from "@/lib/queries/opportunities";
 import { OpportunitiesSplitView } from "./opportunities-split-view";
 import { PageHeader } from "@/components/workspace/page-header";

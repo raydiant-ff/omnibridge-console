@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { requireSession } from "@omnibridge/auth";
 import { getAllRenewalCandidates } from "@/lib/queries/cs-renewals";
 import { RenewalsReportTable } from "./renewals-report-table";
