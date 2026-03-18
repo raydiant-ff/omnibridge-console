@@ -17,31 +17,25 @@ export const authOptions: NextAuthOptions = {
       },
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) {
-          console.error("[auth] missing email or password");
           return null;
         }
 
         try {
-          console.log("[auth] looking up user:", credentials.email);
           const user = await prisma.user.findUnique({
             where: { email: credentials.email },
             select: { id: true, email: true, name: true, role: true, passwordHash: true },
           });
 
           if (!user) {
-            console.error("[auth] user not found:", credentials.email);
             return null;
           }
           if (!user.passwordHash) {
-            console.error("[auth] user has no password hash:", credentials.email);
             return null;
           }
           if (!compareSync(credentials.password, user.passwordHash)) {
-            console.error("[auth] password mismatch for:", credentials.email);
             return null;
           }
 
-          console.log("[auth] login success:", credentials.email);
           return { id: user.id, email: user.email, name: user.name, role: user.role };
         } catch (err) {
           console.error("[auth] authorize error:", err);
