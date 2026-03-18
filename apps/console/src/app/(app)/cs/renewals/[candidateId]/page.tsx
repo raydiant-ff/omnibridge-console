@@ -3,7 +3,6 @@ export const dynamic = "force-dynamic";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getRenewalDetail } from "@/lib/queries/cs-renewals";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -24,6 +23,8 @@ import {
   Section,
   FieldRow,
 } from "@/components/workspace";
+import { Badge } from "@/components/ui/badge";
+import { RenewalStatusBadge } from "../renewal-status-badge";
 
 interface Props {
   params: Promise<{ candidateId: string }>;
@@ -322,16 +323,3 @@ export default async function RenewalDetailPage({ params }: Props) {
   );
 }
 
-function RenewalStatusBadge({ status }: { status: string }) {
-  const config: Record<string, { label: string; variant: string }> = {
-    cancelling: { label: "Cancelling", variant: "destructive" },
-    scheduled_end: { label: "Schedule Ending", variant: "secondary" },
-    period_ending: { label: "Period Ending", variant: "outline" },
-  };
-  const cfg = config[status] ?? { label: status, variant: "secondary" };
-  return (
-    <Badge variant={cfg.variant as "destructive" | "secondary" | "outline"} className="text-[10px]">
-      {cfg.label}
-    </Badge>
-  );
-}
