@@ -1,4 +1,29 @@
-export { default } from "next-auth/middleware";
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
+
+export async function middleware(request: NextRequest) {
+  const secret = process.env.NEXTAUTH_SECRET;
+
+  // Without a secret we cannot verify tokens. Redirect to login rather than
+  // crashing the middleware runtime (which surfaces as MIDDLEWARE_INVOCATION_FAILED).
+  if (!secret) {
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+
+  try {
+    const token = await getToken({ req: request, secret });
+
+    if (!token) {
+      return NextResponse.redirect(new URL("/login", request.url));
+    }
+
+    return NextResponse.next();
+  } catch (err) {
+    console.error("[middleware] Auth verification failed:", err);
+    return NextResponse.redirect(new URL("/login", request.url));
+  }
+}
 
 export const config = {
   matcher: [
