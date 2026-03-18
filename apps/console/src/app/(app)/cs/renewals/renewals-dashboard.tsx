@@ -35,6 +35,7 @@ import type {
   CustomerPanelData,
 } from "@/lib/actions/customer-lookup";
 
+import { cn } from "@/lib/utils";
 import { RenewalsKpiStrip } from "./renewals-kpi-strip";
 import { RenewalsQueue, bucketCandidates } from "./renewals-queue";
 import { RenewalDetailPane, CustomerLookupPane, DetailEmptyState } from "./renewals-detail";
@@ -236,15 +237,17 @@ export function RenewalsDashboard({
         isPending={isPending}
       />
 
-      {/* Split workspace: queue + detail */}
-      <div className="grid gap-5 grid-cols-1 lg:grid-cols-[1fr_420px]">
-        {/* Left — queue */}
+      {/* Split workspace: table + detail */}
+      <div className={cn(
+        "grid gap-5 grid-cols-1 lg:grid-cols-[1fr_380px]",
+        isPending && "opacity-50 pointer-events-none transition-opacity",
+      )}>
+        {/* Left — table */}
         <RenewalsQueue
           buckets={buckets}
           selectedId={selectedId}
           onSelect={selectCandidate}
           emptyLabel={emptyLabel}
-          isPending={isPending}
         />
 
         {/* Right — detail pane */}

@@ -1,6 +1,12 @@
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
-import { ListShell, ListRow, ListRowTitle, ListRowDetail } from "@/components/omni";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import type { RenewalCandidate } from "@/lib/queries/cs-renewals";
 
 // ---------------------------------------------------------------------------
@@ -13,6 +19,13 @@ function fmtCompact(cents: number): string {
   return `$${dollars.toFixed(0)}`;
 }
 
+function fmtDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+  });
+}
+
 function daysUntil(iso: string): number {
   const end = new Date(iso);
   const today = new Date();
@@ -22,8 +35,8 @@ function daysUntil(iso: string): number {
 
 function daysLabel(iso: string): string {
   const d = daysUntil(iso);
-  if (d < 0) return `${Math.abs(d)}d overdue`;
-  if (d === 0) return "Due today";
+  if (d < 0) return `${Math.abs(d)}d over`;
+  if (d === 0) return "Today";
   return `${d}d`;
 }
 
@@ -72,43 +85,96 @@ export function bucketCandidates(
 }
 
 // ---------------------------------------------------------------------------
-// Bucket section header
+// Status label — single compact text, not a badge
 // ---------------------------------------------------------------------------
 
-const BUCKET_STYLES: Record<string, string> = {
-  overdue: "bg-destructive",
-  dueToday: "bg-orange-500",
-  dueSoon: "bg-amber-500",
-  onTrack: "bg-emerald-500",
+const STATUS_LABEL: Record<string, { text: string; className: string }> = {
+  cancelling: { text: "Cancelling", className: "text-destructive" },
+  scheduled_end: { text: "Sched. end", className: "text-amber-600 dark:text-amber-400" },
+  period_ending: { text: "Period end", className: "text-muted-foreground" },
 };
 
-function BucketHeader({
-  title,
-  count,
-  mrrTotal,
-  bucketKey,
-}: {
+function statusCell(c: RenewalCandidate): { text: string; className: string } {
+  if (c.subscriptionStatus === "past_due") {
+    return { text: "Past due", className: "text-destructive font-medium" };
+  }
+  return STATUS_LABEL[c.renewalStatus] ?? { text: "—", className: "text-muted-foreground" };
+}
+
+// ---------------------------------------------------------------------------
+// Bucket section config
+// ---------------------------------------------------------------------------
+
+interface BucketConfig {
+  key: string;
   title: string;
-  count: number;
-  mrrTotal: number;
-  bucketKey: string;
-}) {
+  accentClass: string;
+  dotClass: string;
+  candidates: RenewalCandidate[];
+}
+
+function getBucketConfigs(buckets: Bucket): BucketConfig[] {
+  return [
+    {
+      key: "overdue",
+      title: "Overdue",
+      accentClass: "bg-destructive/5 dark:bg-destructive/10",
+      dotClass: "bg-destructive",
+      candidates: buckets.overdue,
+    },
+    {
+      key: "dueToday",
+      title: "Due Today",
+      accentClass: "bg-orange-500/5 dark:bg-orange-500/10",
+      dotClass: "bg-orange-500",
+      candidates: buckets.dueToday,
+    },
+    {
+      key: "dueSoon",
+      title: "Due Soon",
+      accentClass: "bg-amber-500/5 dark:bg-amber-500/10",
+      dotClass: "bg-amber-500",
+      candidates: buckets.dueSoon,
+    },
+    {
+      key: "onTrack",
+      title: "On Track",
+      accentClass: "",
+      dotClass: "bg-emerald-500",
+      candidates: buckets.onTrack,
+    },
+  ].filter((b) => b.candidates.length > 0);
+}
+
+// ---------------------------------------------------------------------------
+// Due cell — date + urgency in one cell
+// ---------------------------------------------------------------------------
+
+function dueCell(iso: string) {
+  const days = daysUntil(iso);
   return (
-    <div className="flex items-center justify-between px-6 py-2.5 bg-muted/30 border-y">
-      <div className="flex items-center gap-2">
-        <span className={cn("size-2 rounded-full", BUCKET_STYLES[bucketKey])} />
-        <span className="text-xs font-medium text-foreground">{title}</span>
-        <span className="text-xs text-muted-foreground">{count}</span>
-      </div>
-      <span className="text-xs font-medium tabular-nums text-foreground">
-        {fmtCompact(mrrTotal)} MRR
+    <div className="flex items-center gap-2 justify-end">
+      <span className="text-muted-foreground">{fmtDate(iso)}</span>
+      <span
+        className={cn(
+          "min-w-[42px] text-right font-medium tabular-nums",
+          days < 0
+            ? "text-destructive"
+            : days <= 1
+              ? "text-orange-600 dark:text-orange-400"
+              : days <= 7
+                ? "text-amber-600 dark:text-amber-400"
+                : "text-muted-foreground",
+        )}
+      >
+        {daysLabel(iso)}
       </span>
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Queue panel
+// Queue table
 // ---------------------------------------------------------------------------
 
 interface RenewalsQueueProps {
@@ -126,160 +192,154 @@ export function RenewalsQueue({
   emptyLabel,
   isPending,
 }: RenewalsQueueProps) {
-  const totalCount =
-    buckets.overdue.length +
-    buckets.dueToday.length +
-    buckets.dueSoon.length +
-    buckets.onTrack.length;
+  const configs = getBucketConfigs(buckets);
+  const totalCount = configs.reduce((s, b) => s + b.candidates.length, 0);
 
   return (
-    <ListShell
-      title="Queue"
-      count={totalCount}
-      isEmpty={totalCount === 0}
-      empty={
-        <div className="py-16 text-center text-sm text-muted-foreground">
-          {emptyLabel}
-        </div>
-      }
+    <div
       className={cn(
-        "overflow-hidden",
+        "rounded-xl border bg-card overflow-hidden",
         isPending && "opacity-50 pointer-events-none transition-opacity",
       )}
     >
-      <BucketGroup
-        title="Overdue"
-        bucketKey="overdue"
-        candidates={buckets.overdue}
-        selectedId={selectedId}
-        onSelect={onSelect}
-      />
-      <BucketGroup
-        title="Due today"
-        bucketKey="dueToday"
-        candidates={buckets.dueToday}
-        selectedId={selectedId}
-        onSelect={onSelect}
-      />
-      <BucketGroup
-        title="Due soon"
-        bucketKey="dueSoon"
-        candidates={buckets.dueSoon}
-        selectedId={selectedId}
-        onSelect={onSelect}
-      />
-      <BucketGroup
-        title="On track"
-        bucketKey="onTrack"
-        candidates={buckets.onTrack}
-        selectedId={selectedId}
-        onSelect={onSelect}
-      />
-    </ListShell>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Bucket group (header + rows)
-// ---------------------------------------------------------------------------
-
-function BucketGroup({
-  title,
-  bucketKey,
-  candidates,
-  selectedId,
-  onSelect,
-}: {
-  title: string;
-  bucketKey: string;
-  candidates: RenewalCandidate[];
-  selectedId: string | null;
-  onSelect: (c: RenewalCandidate) => void;
-}) {
-  if (candidates.length === 0) return null;
-
-  const mrrTotal = candidates.reduce((s, c) => s + c.mrr, 0);
-
-  return (
-    <div>
-      <BucketHeader
-        title={title}
-        count={candidates.length}
-        mrrTotal={mrrTotal}
-        bucketKey={bucketKey}
-      />
-      {candidates.map((c) => (
-        <CandidateRow
-          key={c.candidateId}
-          c={c}
-          selected={selectedId === c.candidateId}
-          onSelect={() => onSelect(c)}
-        />
-      ))}
+      {totalCount === 0 ? (
+        <div className="py-16 text-center text-sm text-muted-foreground">
+          {emptyLabel}
+        </div>
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="w-[280px]">Customer</TableHead>
+              <TableHead className="w-[90px]">Status</TableHead>
+              <TableHead className="w-[120px]">CSM</TableHead>
+              <TableHead className="w-[90px]">Billing</TableHead>
+              <TableHead className="w-[90px] text-right">MRR</TableHead>
+              <TableHead className="w-[150px] text-right">Due</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {configs.map((bucket) => (
+              <BucketGroup
+                key={bucket.key}
+                config={bucket}
+                selectedId={selectedId}
+                onSelect={onSelect}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      )}
     </div>
   );
 }
 
 // ---------------------------------------------------------------------------
-// Candidate row — built on ListRow
+// Bucket group: section header row + data rows
 // ---------------------------------------------------------------------------
 
-function CandidateRow({
-  c,
-  selected,
+function BucketGroup({
+  config,
+  selectedId,
   onSelect,
 }: {
-  c: RenewalCandidate;
-  selected: boolean;
-  onSelect: () => void;
+  config: BucketConfig;
+  selectedId: string | null;
+  onSelect: (c: RenewalCandidate) => void;
 }) {
-  const days = daysUntil(c.dueDate);
+  const mrrTotal = config.candidates.reduce((s, c) => s + c.mrr, 0);
 
   return (
-    <ListRow
-      onClick={onSelect}
-      selected={selected}
-      compact
-      value={
-        <span className="text-sm font-medium tabular-nums text-foreground">
-          {fmtCompact(c.mrr * 12)}
-        </span>
-      }
-      meta={
-        <span
-          className={cn(
-            "text-xs font-medium whitespace-nowrap tabular-nums",
-            days < 0
-              ? "text-destructive"
-              : days <= 7
-                ? "text-amber-500"
-                : "text-muted-foreground",
-          )}
+    <>
+      {/* Section header */}
+      <TableRow className="hover:bg-transparent border-b-0">
+        <TableCell
+          colSpan={6}
+          className={cn("py-1.5 px-3", config.accentClass)}
         >
-          {daysLabel(c.dueDate)}
-        </span>
-      }
-    >
-      <ListRowTitle>
-        <span className="text-sm font-medium truncate text-foreground">
-          {c.customerName}
-        </span>
-        {c.renewalStatus === "cancelling" && (
-          <Badge variant="destructive" className="text-[10px]">Cancelling</Badge>
-        )}
-        {c.subscriptionStatus === "past_due" && (
-          <Badge variant="destructive" className="text-[10px]">Past due</Badge>
-        )}
-      </ListRowTitle>
-      <ListRowDetail>
-        {c.csmName && <span>{c.csmName}</span>}
-        {c.csmName && c.contract?.contractNumber && <span>·</span>}
-        {c.contract?.contractNumber && (
-          <span className="font-mono">{c.contract.contractNumber}</span>
-        )}
-        <span>·</span>
-        <span>{c.collectionMethod === "send_invoice" ? "Invoice" : "Auto"}</span>
-      </ListRowDetail>
-    </ListRow>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className={cn("size-1.5 rounded-full", config.dotClass)} />
+              <span className="text-xs font-semibold text-foreground tracking-wide uppercase">
+                {config.title}
+              </span>
+              <span className="text-xs text-muted-foreground tabular-nums">
+                {config.candidates.length}
+              </span>
+            </div>
+            <span className="text-xs font-medium text-muted-foreground tabular-nums">
+              {fmtCompact(mrrTotal)} MRR
+            </span>
+          </div>
+        </TableCell>
+      </TableRow>
+
+      {/* Data rows */}
+      {config.candidates.map((c) => {
+        const selected = selectedId === c.candidateId;
+        const status = statusCell(c);
+
+        return (
+          <TableRow
+            key={c.candidateId}
+            data-state={selected ? "selected" : undefined}
+            onClick={() => onSelect(c)}
+            className={cn(
+              "cursor-pointer transition-colors",
+              selected
+                ? "bg-primary/[0.06] dark:bg-primary/[0.12] border-l-2 border-l-primary"
+                : "border-l-2 border-l-transparent hover:bg-muted/50",
+            )}
+          >
+            {/* Customer */}
+            <TableCell className="py-2.5">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-sm font-medium text-foreground truncate max-w-[260px]">
+                  {c.customerName}
+                </span>
+                {c.contract?.contractNumber && (
+                  <span className="text-xs text-muted-foreground font-mono">
+                    {c.contract.contractNumber}
+                  </span>
+                )}
+              </div>
+            </TableCell>
+
+            {/* Status */}
+            <TableCell className="py-2.5">
+              <span className={cn("text-xs", status.className)}>
+                {status.text}
+              </span>
+            </TableCell>
+
+            {/* CSM */}
+            <TableCell className="py-2.5">
+              <span className="text-sm text-foreground truncate block max-w-[110px]">
+                {c.csmName ?? "—"}
+              </span>
+            </TableCell>
+
+            {/* Billing */}
+            <TableCell className="py-2.5">
+              <span className="text-xs text-muted-foreground">
+                {c.collectionMethod === "send_invoice" ? "Invoice" : "Auto"}
+              </span>
+            </TableCell>
+
+            {/* MRR */}
+            <TableCell className="py-2.5 text-right">
+              <span className="text-sm font-medium tabular-nums text-foreground">
+                {fmtCompact(c.mrr)}
+              </span>
+            </TableCell>
+
+            {/* Due */}
+            <TableCell className="py-2.5 text-right text-xs">
+              {dueCell(c.dueDate)}
+            </TableCell>
+          </TableRow>
+        );
+      })}
+    </>
   );
 }
