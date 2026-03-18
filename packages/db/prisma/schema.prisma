@@ -40,6 +40,7 @@ enum WorkItemType {
   billing_issue
   customer_task
   ops_exception
+  create_subscription
 }
 
 // RenewalStatus — workflow state for Renewal product entity.

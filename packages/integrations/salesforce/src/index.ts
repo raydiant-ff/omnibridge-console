@@ -345,6 +345,7 @@ export interface SalesforceAccountDetail {
   Churn_Details__c: string | null;
   AR_Notes__c: string | null;
   Latest_Health_Update_text__c: string | null;
+  Status_Calculated__c: string | null;
 }
 
 export async function getAccountDetail(accountId: string): Promise<SalesforceAccountDetail | null> {
@@ -357,7 +358,7 @@ export async function getAccountDetail(accountId: string): Promise<SalesforceAcc
       `Dashboard_Email__c, blng__BillToContact__r.Name, Bill_To_Email__c, ` +
       `ShippingStreet, ShippingCity, ShippingState, ShippingPostalCode, ShippingCountry, ` +
       `BillingStreet, BillingCity, BillingState, BillingPostalCode, BillingCountry, ` +
-      `Account_notes__c, Churn_Details__c, AR_Notes__c, Latest_Health_Update_text__c ` +
+      `Account_notes__c, Churn_Details__c, AR_Notes__c, Latest_Health_Update_text__c, Status_Calculated__c ` +
       `FROM Account WHERE Id = '${escapeSoql(accountId)}' LIMIT 1`,
   );
   return records[0] ?? null;

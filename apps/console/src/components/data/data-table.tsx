@@ -7,6 +7,7 @@ import {
   type VisibilityState,
   type RowSelectionState,
   type ExpandedState,
+  type Row,
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
@@ -90,7 +91,7 @@ export function DataTableShell<TData>({
                 aria-label="Select all"
               />
             ),
-            cell: ({ row }: { row: ReturnType<typeof useReactTable<TData>>["getRowModel"]["rows"][number] }) => (
+            cell: ({ row }: { row: Row<TData> }) => (
               <Checkbox
                 checked={row.getIsSelected()}
                 onCheckedChange={(v) => row.toggleSelected(!!v)}
@@ -109,7 +110,7 @@ export function DataTableShell<TData>({
           {
             id: "__expand",
             header: () => null,
-            cell: ({ row }: { row: ReturnType<typeof useReactTable<TData>>["getRowModel"]["rows"][number] }) =>
+            cell: ({ row }: { row: Row<TData> }) =>
               row.getCanExpand() ? (
                 <button
                   onClick={(e) => {

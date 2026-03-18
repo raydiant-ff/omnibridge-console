@@ -6,7 +6,7 @@ import { SF_ACCOUNT_BASE_WHERE } from "@/lib/repo";
 import type { QuoteView } from "./types";
 
 function mapQuote(
-  q: Awaited<ReturnType<typeof fetchQuoteRaw>>,
+  q: NonNullable<Awaited<ReturnType<typeof fetchQuoteRaw>>>,
   sfAccountName: string | null,
   billToContact: QuoteView["billToContact"],
   createdByName: string | null,
