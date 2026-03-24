@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DetailCard, DetailRow, ActionBar } from "@/components/omni";
 import { RenewalStatusBadge } from "./renewal-status-badge";
-import type { RenewalDetailData } from "@/lib/queries/cs-renewals";
+import type { RenewalDetailData } from "@/lib/omni/adapters/renewals";
 import type {
   CustomerSearchResult,
   CustomerPanelData,

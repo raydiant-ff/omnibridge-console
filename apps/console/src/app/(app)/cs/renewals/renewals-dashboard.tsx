@@ -24,7 +24,7 @@ import type {
   RenewalsDashboardData,
   RenewalCandidate,
   RenewalDetailData,
-} from "@/lib/queries/cs-renewals";
+} from "@/lib/omni/adapters/renewals";
 import { fetchRenewalsForMonth, fetchRenewalDetail } from "./actions";
 import {
   searchCustomersTypeahead,
@@ -65,9 +65,11 @@ function shiftMonth(month: string, delta: number): string {
 export function RenewalsDashboard({
   initialMonth,
   initialData,
+  initialAccountFilter,
 }: {
   initialMonth: string;
   initialData: RenewalsDashboardData;
+  initialAccountFilter?: string | null;
 }) {
   // ── Data state ──
   const [month, setMonth] = useState(initialMonth);
@@ -79,6 +81,9 @@ export function RenewalsDashboard({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<RenewalDetailData | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  // ── Account filter (from deep link) ──
+  const [accountFilter, setAccountFilter] = useState<string | null>(initialAccountFilter ?? null);
 
   // ── Customer search state ──
   const [searchQuery, setSearchQuery] = useState("");
@@ -175,7 +180,13 @@ export function RenewalsDashboard({
   // ── Derived ──
 
   const { summary } = data;
-  const buckets = bucketCandidates(data.candidates, data.overdue);
+  const visibleCandidates = accountFilter
+    ? data.candidates.filter((c) => c.customerId === accountFilter)
+    : data.candidates;
+  const visibleOverdue = accountFilter
+    ? data.overdue.filter((c) => c.customerId === accountFilter)
+    : data.overdue;
+  const buckets = bucketCandidates(visibleCandidates, visibleOverdue);
   const overdueMrr = buckets.overdue.reduce((s, c) => s + c.mrr, 0);
 
   const emptyLabel =
@@ -236,6 +247,25 @@ export function RenewalsDashboard({
         onTrackCount={buckets.onTrack.length}
         isPending={isPending}
       />
+
+      {/* Account filter banner */}
+      {accountFilter && (
+        <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-2">
+          <span className="text-sm text-foreground">
+            Filtered to account: <span className="font-medium">{
+              visibleCandidates[0]?.customerName ?? accountFilter
+            }</span>
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="ml-auto h-7 text-xs"
+            onClick={() => setAccountFilter(null)}
+          >
+            Clear filter
+          </Button>
+        </div>
+      )}
 
       {/* Split workspace: table + detail */}
       <div className={cn(

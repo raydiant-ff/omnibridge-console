@@ -33,10 +33,12 @@ export const config = {
      *  - /api/auth/* (NextAuth endpoints)
      *  - /api/stripe/webhook (Stripe webhook — authenticated via signature)
      *  - /api/docusign/webhook (DocuSign webhook — authenticated via HMAC)
+     *  - /api/cron/* (Vercel cron jobs — authenticated via CRON_SECRET)
+     *  - /api/health/* (health checks — public)
      *  - /accept/* (public quote acceptance pages)
      *  - /_next/* (Next.js internals)
      *  - /favicon.ico, /robots.txt, static assets
      */
-    "/((?!login|accept|api/auth|api/stripe/webhook|api/docusign/webhook|api/checkout|_next/static|_next/image|favicon\\.ico|robots\\.txt).*)",
+    "/((?!login|accept|api/auth|api/stripe/webhook|api/docusign/webhook|api/cron|api/health|api/checkout|_next/static|_next/image|favicon\\.ico|robots\\.txt).*)",
   ],
 };

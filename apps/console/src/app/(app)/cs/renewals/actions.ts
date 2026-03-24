@@ -1,12 +1,28 @@
 "use server";
 
+/**
+ * Renewals route actions — canonical Omni data layer.
+ *
+ * Data flows: canonical repo → adapter → route-edge types.
+ * UI components consume adapter-local types only.
+ */
+
 import { requireSession } from "@omnibridge/auth";
 import {
-  getRenewalCandidates,
-  getRenewalDetail,
-  type RenewalsDashboardData,
-  type RenewalDetailData,
-} from "@/lib/queries/cs-renewals";
+  getOmniRenewalCandidates,
+  getOmniRenewalDetail,
+} from "@/lib/omni/repo";
+import {
+  adaptRenewalsDashboard,
+  adaptRenewalDetail,
+} from "@/lib/omni/adapters/renewals";
+import type {
+  RenewalsDashboardData,
+  RenewalCandidate,
+  RenewalDetailData,
+} from "@/lib/omni/adapters/renewals";
+
+// Types: import from @/lib/omni/adapters/renewals directly in client components
 
 export async function fetchRenewalsForMonth(
   month: string,
@@ -18,7 +34,8 @@ export async function fetchRenewalsForMonth(
     throw new Error("Invalid month format. Expected YYYY-MM.");
   }
 
-  return getRenewalCandidates(month, csm);
+  const data = await getOmniRenewalCandidates(month, csm);
+  return adaptRenewalsDashboard(data);
 }
 
 export async function fetchRenewalDetail(
@@ -30,5 +47,8 @@ export async function fetchRenewalDetail(
     throw new Error("Invalid candidate ID format.");
   }
 
-  return getRenewalDetail(candidateId);
+  const detail = await getOmniRenewalDetail(candidateId);
+  if (!detail) return null;
+  return adaptRenewalDetail(detail);
 }
+

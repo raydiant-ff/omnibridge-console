@@ -4,6 +4,8 @@ import { prisma } from "@omnibridge/db";
 import { requireSession } from "@omnibridge/auth";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { getWorkspaceTrustSummary } from "@/lib/omni/repo";
 import { SyncPageActions } from "./sync-actions";
 import { SyncJobsTable } from "./sync-jobs-table";
 import { SyncEventsTable } from "./sync-events-table";
@@ -104,7 +106,10 @@ export default async function AdminSyncPage() {
     prisma.syncEvent.count({ where: { success: false } }),
   ]);
 
-  const quality = await getDataQualityReport();
+  const [quality, trustSummary] = await Promise.all([
+    getDataQualityReport(),
+    getWorkspaceTrustSummary(),
+  ]);
 
   const stripeTotal = stripeCustomerTotal + stripeProductTotal + stripePriceTotal + stripeSubTotal + stripeInvoiceTotal + stripePaymentTotal + stripePmTotal;
   const sfTotal = sfAccountTotal + sfContractTotal + sfContractLineTotal + sfContactTotal;
@@ -161,6 +166,47 @@ export default async function AdminSyncPage() {
           variant={totalErrors === 0 ? "default" : "warning"}
         />
       </div>
+
+      {/* ── Mirror Freshness ── */}
+      <section className="flex flex-col gap-3">
+        <SectionHeader title="Mirror Freshness" detail="Per-source data currency" />
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          {trustSummary.freshness.sources.map((s) => {
+            const stateColor = s.freshness.state === "fresh" ? "text-emerald-600"
+              : s.freshness.state === "lagging" ? "text-amber-600"
+              : s.freshness.state === "stale" ? "text-orange-600"
+              : "text-red-600";
+            const badgeVariant = s.freshness.state === "fresh" ? "default" as const
+              : s.freshness.state === "degraded" ? "destructive" as const
+              : "outline" as const;
+            const label = s.source.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+            const asOf = s.freshness.dataAsOf
+              ? new Date(s.freshness.dataAsOf).toLocaleDateString("en-US", {
+                  month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+                })
+              : "Never synced";
+            const isMissing = trustSummary.missingSources.some((ms) => ms.source === s.source);
+            return (
+              <Card key={s.source} className={isMissing ? "border-red-300" : ""}>
+                <CardContent className="px-4 py-3">
+                  <p className="text-xs font-medium text-muted-foreground truncate">{label}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant={badgeVariant} className="text-[10px]">
+                      {isMissing ? "missing" : s.freshness.state}
+                    </Badge>
+                  </div>
+                  <p className={`text-xs mt-1 tabular-nums ${stateColor}`}>
+                    {isMissing ? "No rows in mirror" : asOf}
+                  </p>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+        {trustSummary.showWarning && (
+          <p className="text-sm text-muted-foreground">{trustSummary.summaryLabel}</p>
+        )}
+      </section>
 
       {/* ── Stripe ── */}
       <section className="flex flex-col gap-3">
@@ -229,7 +275,7 @@ export default async function AdminSyncPage() {
 
       {/* ── Salesforce ── */}
       <section className="flex flex-col gap-3">
-        <SectionHeader title="Salesforce" detail="Mirrored via backfill and cron sync" />
+        <SectionHeader title="Salesforce" detail="Mirrored via scheduled cron (every 6h) and manual backfill scripts" />
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <MetricCard
             label="Accounts"

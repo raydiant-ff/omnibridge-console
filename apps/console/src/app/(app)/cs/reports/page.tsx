@@ -1,16 +1,19 @@
 export const dynamic = "force-dynamic";
 import { requireSession } from "@omnibridge/auth";
-import { getAllRenewalCandidates } from "@/lib/queries/cs-renewals";
+import { getAllOmniRenewalCandidates } from "@/lib/omni/repo";
+import { adaptRenewalCandidate } from "@/lib/omni/adapters/renewals";
+import type { RenewalCandidate } from "@/lib/omni/adapters/renewals";
 import { RenewalsReportTable } from "./renewals-report-table";
 
 export default async function CsReportsPage() {
   await requireSession();
 
-  let candidates: Awaited<ReturnType<typeof getAllRenewalCandidates>> = [];
+  let candidates: RenewalCandidate[] = [];
   let error: string | null = null;
 
   try {
-    candidates = await getAllRenewalCandidates();
+    const raw = await getAllOmniRenewalCandidates();
+    candidates = raw.map(adaptRenewalCandidate);
   } catch (err) {
     error = err instanceof Error ? err.message : "Failed to load renewals data.";
   }

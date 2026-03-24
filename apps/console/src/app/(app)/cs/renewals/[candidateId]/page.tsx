@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getRenewalDetail } from "@/lib/queries/cs-renewals";
+import { fetchRenewalDetail } from "../actions";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -56,7 +56,7 @@ function fmtDate(iso: string | null): string {
 export default async function RenewalDetailPage({ params }: Props) {
   const { candidateId } = await params;
   const decoded = decodeURIComponent(candidateId);
-  const detail = await getRenewalDetail(decoded);
+  const detail = await fetchRenewalDetail(decoded);
   if (!detail) notFound();
 
   const { candidate: c, contractLines, account } = detail;

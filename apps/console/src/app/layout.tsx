@@ -5,8 +5,8 @@ import { Providers } from "@/components/providers";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Displai Omni",
-  description: "Internal operations platform for Displai",
+  title: "OmniBridge",
+  description: "Internal billing and quoting operations platform",
 };
 
 export default function RootLayout({

@@ -1,6 +1,12 @@
-// ⚠️  QUARANTINE — do not extend this file.
-// Uses $queryRawUnsafe. Any new renewal reads must go through lib/projections/renewal-view.ts.
-// Parameterization has been verified but the raw SQL surface should not grow.
+/**
+ * @deprecated
+ * Superseded by canonical Omni contracts in `lib/omni/*`.
+ * Route consumers should import from `lib/omni/adapters/renewals` instead.
+ * Kept temporarily for parity comparison scripts only.
+ *
+ * ⚠️  QUARANTINE — do not extend this file.
+ * Uses $queryRawUnsafe. Parameterization has been verified but the raw SQL surface should not grow.
+ */
 
 import { prisma } from "@omnibridge/db";
 import { computeItemMrr } from "@/lib/billing-utils";

@@ -26,6 +26,9 @@ import {
   ArrowUpRight,
   PenLine,
   BarChart3,
+  Search,
+  ShieldAlert,
+  ClipboardList,
 } from "lucide-react";
 import { SidebarShell, SidebarNavSection, SidebarFooter } from "@/components/shell";
 
@@ -59,7 +62,7 @@ interface NavSection {
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    header: "Displai",
+    header: "Operations",
     items: [
       {
         label: "Customers",
@@ -76,6 +79,8 @@ const NAV_SECTIONS: NavSection[] = [
           { label: "Amendments", href: "/cs/amendments", icon: <PenLine className="size-3.5" /> },
           { label: "Downgrades", href: "/cs/downgrades", icon: <TrendingDown className="size-3.5" /> },
           { label: "Cancellations", href: "/cs/cancellations", icon: <XCircle className="size-3.5" /> },
+          { label: "CS Queue", href: "/cs/queue", icon: <ClipboardList className="size-3.5" /> },
+          { label: "Data Quality", href: "/cs/data-quality", icon: <ShieldAlert className="size-3.5" /> },
           { label: "Reports", href: "/cs/reports", icon: <BarChart3 className="size-3.5" /> },
         ],
       },
@@ -136,6 +141,7 @@ const NAV_SECTIONS: NavSection[] = [
         icon: <RefreshCw className="size-4" />,
         children: [
           { label: "Dashboard", href: "/subscriptions", icon: <LayoutDashboard className="size-3.5" />, exact: true },
+          { label: "Scrub", href: "/subscriptions/scrub", icon: <Search className="size-3.5" /> },
           { label: "Create", href: "/subscriptions/create", icon: <Plus className="size-3.5" /> },
         ],
       },

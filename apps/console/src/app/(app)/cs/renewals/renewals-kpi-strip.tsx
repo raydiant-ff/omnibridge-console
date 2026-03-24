@@ -1,6 +1,6 @@
 import { StatStrip } from "@/components/omni";
 import { cn } from "@/lib/utils";
-import type { RenewalsSummary } from "@/lib/queries/cs-renewals";
+import type { RenewalsSummary } from "@/lib/omni/adapters/renewals";
 
 function fmtCompact(cents: number): string {
   const dollars = cents / 100;

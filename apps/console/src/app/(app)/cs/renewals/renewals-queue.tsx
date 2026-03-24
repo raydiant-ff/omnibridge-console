@@ -11,7 +11,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { RenewalCandidate } from "@/lib/queries/cs-renewals";
+import type { RenewalCandidate } from "@/lib/omni/adapters/renewals";
 
 // ---------------------------------------------------------------------------
 // Formatters
@@ -46,8 +46,8 @@ function daysLabel(iso: string): string {
 
 function urgencyClass(iso: string): string {
   const d = daysUntil(iso);
-  if (d < 0) return "text-destructive";
-  if (d <= 1) return "text-orange-600 dark:text-orange-400";
+  if (d < 0) return "text-destructive bg-destructive/10 rounded px-1";
+  if (d === 0) return "text-orange-600 dark:text-orange-400 bg-orange-500/10 rounded px-1";
   if (d <= 7) return "text-amber-600 dark:text-amber-400";
   return "text-muted-foreground";
 }
@@ -151,6 +151,14 @@ function groupByCustomer(candidates: RenewalCandidate[]): CustomerGroup[] {
       if (s.severity > worst.severity) worst = s;
     }
 
+    // Sort children by urgency (days ascending) → MRR descending
+    const sorted = children.sort((a, b) => {
+      const daysA = daysUntil(a.dueDate);
+      const daysB = daysUntil(b.dueDate);
+      if (daysA !== daysB) return daysA - daysB; // most urgent first
+      return b.mrr - a.mrr; // then highest MRR
+    });
+
     groups.push({
       customerId,
       customerName: children[0].customerName,
@@ -159,7 +167,7 @@ function groupByCustomer(candidates: RenewalCandidate[]): CustomerGroup[] {
       totalMrr,
       earliestDueDate,
       worstStatus: worst,
-      candidates: children.sort((a, b) => b.mrr - a.mrr),
+      candidates: sorted,
     });
   }
 
@@ -262,20 +270,22 @@ export function RenewalsQueue({
   return (
     <div className="rounded-xl border bg-card overflow-hidden">
       {totalCount === 0 ? (
-        <div className="py-16 text-center text-sm text-muted-foreground">
-          {emptyLabel}
+        <div className="py-16 text-center">
+          <p className="text-sm font-medium text-foreground">No renewals found</p>
+          <p className="text-xs text-muted-foreground mt-1">{emptyLabel}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">Try navigating to a different month.</p>
         </div>
       ) : (
         <Table>
           <TableHeader>
-            <TableRow className="hover:bg-transparent">
+            <TableRow className="bg-muted/50 hover:bg-muted/50">
               <TableHead className="w-[30px] pl-3 pr-0" />
-              <TableHead className="w-[240px]">Customer</TableHead>
-              <TableHead className="w-[80px]">Status</TableHead>
-              <TableHead className="w-[110px]">CSM</TableHead>
-              <TableHead className="w-[70px]">Billing</TableHead>
-              <TableHead className="w-[80px] text-right">MRR</TableHead>
-              <TableHead className="w-[140px] text-right">Due</TableHead>
+              <TableHead className="w-[240px] text-xs font-semibold">Customer</TableHead>
+              <TableHead className="w-[80px] text-xs font-semibold">Status</TableHead>
+              <TableHead className="w-[110px] text-xs font-semibold">CSM</TableHead>
+              <TableHead className="w-[70px] text-xs font-semibold">Billing</TableHead>
+              <TableHead className="w-[80px] text-right text-xs font-semibold">MRR</TableHead>
+              <TableHead className="w-[140px] text-right text-xs font-semibold">Due</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -428,22 +438,27 @@ function CustomerGroupRows({
           )}
         </TableCell>
 
-        {/* Customer name + contract count */}
+        {/* Customer name + contract count + action hint */}
         <TableCell className="py-2">
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium text-foreground truncate max-w-[200px]">
-              {group.customerName}
-            </span>
-            {!isSingle && (
-              <span className="text-xs text-muted-foreground tabular-nums">
-                {group.contractCount}
+          <div className="flex flex-col gap-0.5">
+            <div className="flex items-center gap-2">
+              <span className={cn(
+                "text-sm font-medium text-foreground truncate max-w-[200px]",
+                !isSingle && "font-semibold",
+              )}>
+                {group.customerName}
               </span>
-            )}
-            {isSingle && singleCandidate?.contract?.contractNumber && (
-              <span className="text-xs text-muted-foreground font-mono">
-                {singleCandidate.contract.contractNumber}
-              </span>
-            )}
+              {!isSingle && (
+                <span className="text-[10px] font-medium text-muted-foreground bg-muted rounded px-1.5 py-0.5 tabular-nums">
+                  {group.contractCount} contracts
+                </span>
+              )}
+              {isSingle && singleCandidate?.contract?.contractNumber && (
+                <span className="text-xs text-muted-foreground font-mono">
+                  {singleCandidate.contract.contractNumber}
+                </span>
+              )}
+            </div>
           </div>
         </TableCell>
 
@@ -504,7 +519,7 @@ function CustomerGroupRows({
               "cursor-pointer transition-colors",
               selected
                 ? "bg-primary/[0.06] dark:bg-primary/[0.12] border-l-2 border-l-primary"
-                : "border-l-2 border-l-transparent hover:bg-muted/30",
+                : "border-l-2 border-l-muted-foreground/20 bg-muted/5 hover:bg-muted/40",
             )}
           >
             {/* Indent spacer */}
