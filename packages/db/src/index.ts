@@ -36,6 +36,26 @@ export type {
   StripePayment,
   StripePaymentMethod,
   SfContact,
+  SfQuote,
+  SupportChannelAccount,
+  SupportChannelEndpoint,
+  SupportAgentChannelAccess,
+  SupportConversation,
+  SupportMessage,
+  SupportParticipant,
+  SupportConversationEvent,
 } from "../generated/client";
 
-export { Role, WorkItemStatus } from "../generated/client";
+export {
+  Role,
+  WorkItemStatus,
+  SupportExternalSystem,
+  SupportChannel,
+  SupportConversationStatus,
+  SupportPriority,
+  SupportWaitingOn,
+  SupportMessageDirection,
+  SupportMessageType,
+  SupportParticipantRole,
+  SupportConversationEventType,
+} from "../generated/client";
