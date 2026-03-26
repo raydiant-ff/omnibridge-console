@@ -43,8 +43,8 @@ function fmtCompact(cents: number): string {
 }
 
 const CATEGORY_LABEL: Record<AccountSignalCategory, string> = {
-  missing_linkage: "Missing Linkage",
-  correlation_issue: "Correlation Issue",
+  missing_linkage: "Missing SF / Stripe Link",
+  correlation_issue: "SF / Stripe Correlation",
   renewal_risk: "Renewal Risk",
   invoice_risk: "Invoice Risk",
   stale_data: "Stale Data",
@@ -84,7 +84,7 @@ function AccountDetail({
   const dq = acct.dqSummary;
 
   return (
-    <div className="rounded-xl border bg-card p-4 flex flex-col gap-4">
+    <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-[0_1px_2px_0_rgba(0,0,0,0.04)] flex flex-col gap-4">
       <div className="flex items-start justify-between">
         <div className="flex flex-col gap-1">
           <h3 className="text-sm font-semibold">{acct.displayName}</h3>
@@ -129,7 +129,7 @@ function AccountDetail({
         <DetailField label="MRR" value={fmtCompact(acct.activeMrrCents)} />
         <DetailField label="ARR" value={fmtCompact(acct.activeArrCents)} />
         <DetailField
-          label="Links"
+          label="SF / Stripe Links"
           value={
             <div className="flex gap-1">
               {acct.hasSalesforce && <Badge variant="secondary" className="text-[10px]">SF</Badge>}
@@ -225,7 +225,7 @@ function AccountDetail({
 
       {/* Review state */}
       {acct.reviewState.isFlagged && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50/50 p-3 flex flex-col gap-1">
+        <div className="rounded-xl border border-amber-200 bg-amber-50/50 p-3.5 flex flex-col gap-1">
           <div className="flex items-center gap-1.5">
             <Flag className="size-3 text-amber-600" />
             <span className="text-xs font-semibold text-amber-800">Flagged for Review</span>
@@ -444,10 +444,10 @@ export function CsQueue({
   ];
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title="CS Queue"
-        description="Customer-level operational queue"
+        description="Stripe and Salesforce operational queue for renewals, billing, data quality, and review follow-up."
         actions={
           <FilterBar>
             <FilterField label="CSM">
@@ -514,7 +514,7 @@ export function CsQueue({
 
       {/* Trust indicator */}
       {trust.showWarning && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50/60 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-300 bg-amber-50/60 px-4 py-3">
           <AlertTriangle className="size-3.5 text-amber-600 shrink-0" />
           <span className="text-xs text-foreground">{trust.summaryLabel}</span>
           <Link href="/admin/sync" className="text-xs text-primary hover:underline ml-auto shrink-0">
@@ -532,22 +532,22 @@ export function CsQueue({
           placeholder="Search by name or domain..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9 h-9"
+          className="h-10 rounded-xl pl-9"
         />
       </div>
 
       <div className="grid gap-5 grid-cols-1 lg:grid-cols-[1fr_380px]">
-        <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-[0_1px_2px_0_rgba(0,0,0,0.04)]">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="px-3 py-2 text-xs font-semibold">Account</TableHead>
-                  <TableHead className="px-3 py-2 text-xs font-semibold w-[100px]">CSM</TableHead>
-                  <TableHead className="px-3 py-2 text-xs font-semibold w-[60px] text-right">Subs</TableHead>
-                  <TableHead className="px-3 py-2 text-xs font-semibold w-[80px] text-right">MRR</TableHead>
-                  <TableHead className="px-3 py-2 text-xs font-semibold">Signals</TableHead>
-                  <TableHead className="px-2 py-2 w-10" />
+                <TableRow>
+                  <TableHead className="px-5">Account</TableHead>
+                  <TableHead className="w-[110px] px-5">CSM</TableHead>
+                  <TableHead className="w-[70px] px-5 text-right">Subs</TableHead>
+                  <TableHead className="w-[90px] px-5 text-right">MRR</TableHead>
+                  <TableHead className="px-5">Signals</TableHead>
+                  <TableHead className="w-10 px-3" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -565,14 +565,14 @@ export function CsQueue({
                     <TableRow
                       key={acct.omniAccountId}
                       className={cn(
-                        "cursor-pointer hover:bg-muted/40 transition-colors",
-                        selectedId === acct.omniAccountId && "bg-primary/5 border-l-2 border-l-primary",
+                        "cursor-pointer transition-colors hover:bg-muted/25",
+                        selectedId === acct.omniAccountId && "bg-primary/[0.05] shadow-[inset_3px_0_0_0_var(--color-primary)]",
                       )}
                       onClick={() =>
                         setSelectedId(selectedId === acct.omniAccountId ? null : acct.omniAccountId)
                       }
                     >
-                      <TableCell className="px-3 py-2.5">
+                      <TableCell className="px-5 py-4">
                         <div className="flex flex-col gap-0.5">
                           <span className="text-sm font-medium truncate max-w-[240px] inline-flex items-center gap-1.5">
                             {acct.displayName}
@@ -588,20 +588,20 @@ export function CsQueue({
                           </div>
                         </div>
                       </TableCell>
-                      <TableCell className="px-3 py-2.5">
+                      <TableCell className="px-5 py-4">
                         <span className="text-xs text-foreground truncate block max-w-[90px]">
                           {acct.csmName ?? "—"}
                         </span>
                       </TableCell>
-                      <TableCell className="px-3 py-2.5 text-right">
+                      <TableCell className="px-5 py-4 text-right">
                         <span className="text-sm tabular-nums">{acct.activeSubscriptionCount}</span>
                       </TableCell>
-                      <TableCell className="px-3 py-2.5 text-right">
+                      <TableCell className="px-5 py-4 text-right">
                         <span className="text-sm font-medium tabular-nums">
                           {acct.activeMrrCents > 0 ? fmtCompact(acct.activeMrrCents) : "—"}
                         </span>
                       </TableCell>
-                      <TableCell className="px-3 py-2.5">
+                      <TableCell className="px-5 py-4">
                         <div className="flex flex-wrap gap-1">
                           {acct.signalCategories.slice(0, 3).map((cat) => (
                             <Badge key={cat} variant={CATEGORY_VARIANT[cat]} className="text-[9px] px-1.5 py-0">
@@ -618,7 +618,7 @@ export function CsQueue({
                           )}
                         </div>
                       </TableCell>
-                      <TableCell className="px-2 py-2.5">
+                      <TableCell className="px-3 py-4">
                         <ChevronRight className="size-3.5 text-muted-foreground" />
                       </TableCell>
                     </TableRow>
@@ -627,7 +627,7 @@ export function CsQueue({
               </TableBody>
             </Table>
           </div>
-          <div className="border-t px-3 py-2 text-xs text-muted-foreground flex items-center justify-between">
+          <div className="flex items-center justify-between border-t border-border/80 px-5 py-3.5 text-xs text-muted-foreground">
             <span>Showing {filtered.length} of {data.totalAccounts} accounts</span>
             {filtered.length < data.totalAccounts && (
               <span className="text-primary/70">Filtered</span>
@@ -640,7 +640,7 @@ export function CsQueue({
             {selectedAcct ? (
               <AccountDetail acct={selectedAcct} onClose={() => setSelectedId(null)} />
             ) : (
-              <div className="rounded-xl border bg-card p-8 flex flex-col items-center justify-center min-h-[300px] text-center">
+              <div className="flex min-h-[300px] flex-col items-center justify-center rounded-2xl border border-border/80 bg-card p-8 text-center shadow-[0_1px_2px_0_rgba(0,0,0,0.04)]">
                 <Search className="size-5 text-muted-foreground/50 mb-2" />
                 <p className="text-sm font-medium text-foreground">No account selected</p>
                 <p className="text-xs text-muted-foreground mt-0.5">

@@ -10,7 +10,7 @@ This document summarizes the current composite Omni build so Engineering can:
 - understand the recommended branch reconciliation path
 
 Date: 2026-03-26
-Working branch during implementation: `feat/v0-design-system`
+Working branch during implementation: `work/composite-v1-integration`
 
 ---
 
@@ -50,6 +50,29 @@ Why not `main` directly:
 - there are multiple cross-cutting areas in flight
 - Support/Avochato/AI work is now mixed with CS/design/perf work
 - we need one safe place to test the combined behavior before promotion
+
+### Branch audit summary
+
+Business scope:
+
+- The composite branch already contains the meaningful product work from the design-system and renewals workspace branches.
+- One historical branch, `recovery/main-wip-2026-03-17`, remains outside the composite, but it is an older preservation snapshot from the PandaDoc-to-DocuSign transition and not a safe candidate for blind merge.
+
+Technical scope:
+
+- Branches reviewed:
+  - `main`
+  - `feat/v0-design-system`
+  - `recovery/design-foundation-2026-03-17`
+  - `recovery/main-wip-2026-03-17`
+  - `work/post-merge-stabilization`
+  - `work/renewals-queue-workspace`
+- Result:
+  - `feat/v0-design-system` is already contained in the composite branch
+  - `work/renewals-queue-workspace` is already contained in the composite branch
+  - `recovery/design-foundation-2026-03-17` is already contained through mainline history
+  - `work/post-merge-stabilization` has no unique commits beyond `main`
+  - `recovery/main-wip-2026-03-17` has one unique WIP preservation commit (`d9e5e19`) that predates and overlaps newer quote/DocuSign work; it should remain as a forensic recovery branch, not an integration target
 
 ---
 

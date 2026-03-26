@@ -6,7 +6,6 @@ import { Search, ChevronRight, X, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -67,7 +66,6 @@ const ISSUE_TYPE_LABEL: Record<IssueType, string> = {
 const SOURCE_LABEL: Record<string, string> = {
   stripe: "Stripe",
   salesforce: "Salesforce",
-  omni: "Omni",
 };
 
 // ---------------------------------------------------------------------------
@@ -82,7 +80,7 @@ function IssueDetail({
   onClose: () => void;
 }) {
   return (
-    <div className="rounded-xl border bg-card p-4 flex flex-col gap-4">
+    <div className="rounded-2xl border border-border/80 bg-card p-5 shadow-[0_1px_2px_0_rgba(0,0,0,0.04)] flex flex-col gap-4">
       <div className="flex items-start justify-between">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-2">
@@ -120,7 +118,7 @@ function IssueDetail({
         />
         {issue.omniAccountId && (
           <DetailRow
-            label="Omni Account"
+            label="Linked Account"
             value={
               <span className="font-mono text-xs break-all">
                 {issue.omniAccountId}
@@ -247,10 +245,10 @@ export function DataQualityQueue({
   ];
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <PageHeader
         title={accountFilter ? `Data Quality — ${accountDisplayName}` : "Data Quality"}
-        description="Deterministic data quality issues across the Omni dataset"
+        description="Stripe and Salesforce mirror degradation that needs operational cleanup."
         actions={
           <FilterBar>
             <FilterField label="Severity">
@@ -305,9 +303,9 @@ export function DataQualityQueue({
 
       {/* Trust indicator */}
       {trust.showWarning && (
-        <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50/60 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-amber-300 bg-amber-50/60 px-4 py-3">
           <AlertTriangle className="size-3.5 text-amber-600 shrink-0" />
-          <span className="text-xs text-foreground">{trust.summaryLabel}</span>
+          <span className="text-xs text-foreground">Mirror freshness affects Stripe/Salesforce degradation visibility. {trust.summaryLabel}</span>
           <Link href="/admin/sync" className="text-xs text-primary hover:underline ml-auto shrink-0">
             Sync status
           </Link>
@@ -316,7 +314,7 @@ export function DataQualityQueue({
 
       {/* Account filter banner */}
       {accountFilter && (
-        <div className="flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-sm">
+        <div className="flex items-center gap-2 rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3 text-sm">
           <span className="text-muted-foreground">Filtered to:</span>
           <span className="font-medium text-foreground">{accountDisplayName}</span>
           <button
@@ -337,23 +335,23 @@ export function DataQualityQueue({
           placeholder="Search by name, ID, or summary..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-9 h-9"
+          className="h-10 rounded-xl pl-9"
         />
       </div>
 
       {/* Split: table + detail */}
       <div className="grid gap-5 grid-cols-1 lg:grid-cols-[1fr_380px]">
         {/* Table */}
-        <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-[0_1px_2px_0_rgba(0,0,0,0.04)]">
           <div className="overflow-x-auto">
             <Table>
               <TableHeader>
-                <TableRow className="bg-muted/50">
-                  <TableHead className="px-3 py-2 text-xs font-semibold w-20">Severity</TableHead>
-                  <TableHead className="px-3 py-2 text-xs font-semibold">Type</TableHead>
-                  <TableHead className="px-3 py-2 text-xs font-semibold">Name</TableHead>
-                  <TableHead className="px-3 py-2 text-xs font-semibold w-24">Source</TableHead>
-                  <TableHead className="px-2 py-2 w-10" />
+                <TableRow>
+                  <TableHead className="w-20 px-5">Severity</TableHead>
+                  <TableHead className="px-5">Type</TableHead>
+                  <TableHead className="px-5">Name</TableHead>
+                  <TableHead className="w-24 px-5">Source</TableHead>
+                  <TableHead className="w-10 px-3" />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -373,8 +371,8 @@ export function DataQualityQueue({
                     <TableRow
                       key={issue.issueId}
                       className={cn(
-                        "cursor-pointer hover:bg-muted/40 transition-colors",
-                        selectedIssueId === issue.issueId && "bg-primary/5 border-l-2 border-l-primary",
+                        "cursor-pointer transition-colors hover:bg-muted/25",
+                        selectedIssueId === issue.issueId && "bg-primary/[0.05] shadow-[inset_3px_0_0_0_var(--color-primary)]",
                       )}
                       onClick={() =>
                         setSelectedIssueId(
@@ -382,7 +380,7 @@ export function DataQualityQueue({
                         )
                       }
                     >
-                      <TableCell className="px-3 py-2.5">
+                      <TableCell className="px-5 py-4">
                         <Badge
                           variant={SEVERITY_VARIANT[issue.severity]}
                           className="text-[10px]"
@@ -390,18 +388,18 @@ export function DataQualityQueue({
                           {SEVERITY_LABEL[issue.severity]}
                         </Badge>
                       </TableCell>
-                      <TableCell className="px-3 py-2.5 text-xs">
+                      <TableCell className="px-5 py-4 text-xs">
                         {ISSUE_TYPE_LABEL[issue.issueType] ?? issue.issueType}
                       </TableCell>
-                      <TableCell className="px-3 py-2.5">
+                      <TableCell className="px-5 py-4">
                         <span className="text-sm font-medium truncate block max-w-[300px]">
                           {issue.displayName ?? "—"}
                         </span>
                       </TableCell>
-                      <TableCell className="px-3 py-2.5 text-xs text-muted-foreground">
+                      <TableCell className="px-5 py-4 text-xs text-muted-foreground">
                         {SOURCE_LABEL[issue.sourceSystem] ?? issue.sourceSystem}
                       </TableCell>
-                      <TableCell className="px-2 py-2.5">
+                      <TableCell className="px-3 py-4">
                         <ChevronRight className="size-3.5 text-muted-foreground" />
                       </TableCell>
                     </TableRow>
@@ -410,7 +408,7 @@ export function DataQualityQueue({
               </TableBody>
             </Table>
           </div>
-          <div className="border-t px-3 py-2 text-xs text-muted-foreground flex items-center justify-between">
+          <div className="flex items-center justify-between border-t border-border/80 px-5 py-3.5 text-xs text-muted-foreground">
             <span>Showing {filtered.length} of {report.totalCount} issues</span>
             {filtered.length < report.totalCount && (
               <span className="text-primary/70">Filtered</span>
@@ -427,7 +425,7 @@ export function DataQualityQueue({
                 onClose={() => setSelectedIssueId(null)}
               />
             ) : (
-              <div className="rounded-xl border bg-card p-8 flex flex-col items-center justify-center min-h-[300px] text-center">
+              <div className="flex min-h-[300px] flex-col items-center justify-center rounded-2xl border border-border/80 bg-card p-8 text-center shadow-[0_1px_2px_0_rgba(0,0,0,0.04)]">
                 <Search className="size-5 text-muted-foreground/50 mb-2" />
                 <p className="text-sm font-medium text-foreground">No issue selected</p>
                 <p className="text-xs text-muted-foreground mt-0.5">

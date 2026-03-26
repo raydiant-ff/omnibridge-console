@@ -11,7 +11,76 @@
  */
 
 // Re-export repo (public API)
-export * from "./repo";
+export {
+  getOmniAccountSpines,
+  getOmniAccountSpine,
+  getOmniSubscriptionFacts,
+  getOmniSubscriptionFact,
+  getOmniRenewalCandidates,
+  getAllOmniRenewalCandidates,
+  getOmniRenewalDetail,
+  getOmniScrubMonthlyAccounts,
+  getOmniScrubAccountDetail,
+  getOmniScrubAccountDetailByOmniId,
+  getOmniAccountSummaries,
+  getOmniDataQualityIssues,
+  getWorkspaceTrustSummary,
+} from "./repo";
+
+export type {
+  OmniRenewalDetailData,
+  OmniRenewalContractLine,
+  OmniRenewalAccount,
+  WorkspaceTrustSummary,
+} from "./repo";
 
 // Re-export contracts (types)
-export * from "./contracts";
+export {
+  computeFreshness,
+  computeCompositeFreshness,
+} from "./contracts";
+
+export type {
+  FreshnessState,
+  FreshnessInfo,
+  FreshnessSource,
+  SourceFreshness,
+  CompositeFreshnessInfo,
+  ConfidenceFlag,
+  ConfidenceFlagEntry,
+  OmniAccountSpine,
+  OmniSubscriptionFacts,
+  OmniRenewalCandidate,
+  OmniRenewalSummary,
+  OmniRenewalDashboardData,
+  RenewalCandidateItem,
+  LinkedContractInfo,
+  BillingMode,
+  RenewalPriorityBucket,
+  RenewalCandidateStatus,
+  RiskReason,
+  OmniScrubMonthlyAccount,
+  OmniScrubMonthlySummary,
+  OmniScrubMonthlyData,
+  ScrubClassification,
+  ScrubSubscriptionRef,
+  OmniScrubAccountDetail,
+  ScrubCanceledSubscription,
+  ScrubActiveSubscription,
+  ScrubSummarySection,
+  ScrubSubItemDetail,
+  CoverageAssessment,
+  CoverageConfidence,
+  CoverageInfo,
+  OmniAccountSummary,
+  OmniAccountSummaryReport,
+  AccountRenewalSummary,
+  AccountDqSummary,
+  AccountSignalCategory,
+  AccountReviewState,
+  OmniDataQualityIssue,
+  OmniDataQualityReport,
+  IssueSeverity,
+  IssueType,
+  EntityType,
+} from "./contracts";

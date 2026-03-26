@@ -1,6 +1,13 @@
 "use server";
 
 import { requireSession } from "@omnibridge/auth";
+import {
+  getOpportunitiesByOwnerEmail,
+  getOpportunitiesForDashboard,
+  getAllOpportunities,
+  searchAccounts,
+  getOpportunitiesByAccountId,
+} from "@omnibridge/salesforce";
 import { flags } from "@/lib/feature-flags";
 import { cached } from "@/lib/cache";
 
@@ -75,7 +82,6 @@ export async function getMyOpportunities(): Promise<OpportunityRow[]> {
   try {
     return await cached(
       async () => {
-        const { getOpportunitiesByOwnerEmail } = await import("@omnibridge/salesforce");
         const records = await getOpportunitiesByOwnerEmail(email);
         return records.map(mapOpportunity);
       },
@@ -166,7 +172,6 @@ export async function getDashboardOpportunities(): Promise<OpportunityRow[]> {
 
   return cached(
     async () => {
-      const { getOpportunitiesForDashboard } = await import("@omnibridge/salesforce");
       const yearStart = `${new Date().getFullYear()}-01-01`;
       const records = await getOpportunitiesForDashboard(yearStart);
       return records.map(mapOpportunity);
@@ -189,7 +194,6 @@ export async function getAllOpportunitiesAdmin(): Promise<OpportunityRow[]> {
 
   return cached(
     async () => {
-      const { getAllOpportunities } = await import("@omnibridge/salesforce");
       const records = await getAllOpportunities();
       return records.map(mapOpportunity);
     },
@@ -245,7 +249,6 @@ export async function searchSalesforceAccounts(
   }
 
   try {
-    const { searchAccounts } = await import("@omnibridge/salesforce");
     const records = await searchAccounts(term.trim());
     return (records as { Id: string; Name: string; Industry: string | null }[]).map(
       (r) => ({
@@ -277,7 +280,6 @@ export async function getOpportunitiesForAccount(
   }
 
   try {
-    const { getOpportunitiesByAccountId } = await import("@omnibridge/salesforce");
     const records = await getOpportunitiesByAccountId(sfAccountId);
     let rows = records.map(mapOpportunity);
     if (quoteType) {

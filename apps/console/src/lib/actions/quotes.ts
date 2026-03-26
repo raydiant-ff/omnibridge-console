@@ -3,6 +3,7 @@
 import { randomUUID } from "crypto";
 import { prisma } from "@omnibridge/db";
 import { requireSession } from "@omnibridge/auth";
+import { getStripeClient } from "@omnibridge/stripe";
 import { flags } from "@/lib/feature-flags";
 import { createSfQuoteMirror } from "./sf-quote-mirror";
 import { createSfQuoteEvent } from "./sf-quote-event";
@@ -78,7 +79,6 @@ export async function createQuoteDraft(
   const needsEnrichment = input.lineItems.some((li) => !li.sfProductId);
   if (needsEnrichment && !flags.useMockStripe) {
     try {
-      const { getStripeClient } = await import("@omnibridge/stripe");
       const stripe = getStripeClient();
       for (const li of input.lineItems) {
         if (li.sfProductId) continue;
@@ -217,7 +217,6 @@ export async function createQuoteDraft(
     stripeQuoteId = `qt_mock_${randomUUID().slice(0, 8)}`;
   } else {
     try {
-      const { getStripeClient } = await import("@omnibridge/stripe");
       const stripe = getStripeClient();
 
       const { createInlineCoupon } = await import("./coupons");
@@ -384,7 +383,6 @@ export async function createQuoteDraft(
 
     if (sfQuoteId && !dryRun && !flags.useMockStripe) {
       try {
-        const { getStripeClient } = await import("@omnibridge/stripe");
         const stripe = getStripeClient();
         await stripe.quotes.update(stripeQuoteId, {
           metadata: {
@@ -530,7 +528,6 @@ export async function finalizeStripeQuote(
   }
 
   try {
-    const { getStripeClient } = await import("@omnibridge/stripe");
     const stripe = getStripeClient();
     await (stripe.quotes as any).finalizeQuote(record.stripeQuoteId);
 
@@ -602,7 +599,6 @@ export async function cancelQuote(
 
   if (!flags.useMockStripe) {
     try {
-      const { getStripeClient } = await import("@omnibridge/stripe");
       const stripe = getStripeClient();
       await (stripe.quotes as any).cancel(record.stripeQuoteId);
     } catch (err: unknown) {
@@ -794,7 +790,6 @@ export async function acceptQuote(
     }
 
     try {
-      const { getStripeClient } = await import("@omnibridge/stripe");
       const stripe = getStripeClient();
       await (stripe.quotes as any).accept(record.stripeQuoteId);
 

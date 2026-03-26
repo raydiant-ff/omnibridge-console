@@ -15,18 +15,107 @@ import type {
   CsDashboardData,
   BannerMetrics,
   PriorityAccountRow,
-  OpportunityContainer,
   QuotesContainer,
-  SubscriptionsContainer,
-  InvoicesContainer,
-  ContractContainer,
-  PaymentsContainer,
   FlagReason,
   AccountSnapshot,
 } from "./types";
 
-function pluralize(n: number, s: string, p?: string): string {
-  return n === 1 ? s : (p ?? s + "s");
+async function fetchSalesforceQuoteContainer(
+  yearStart: Date,
+): Promise<{
+  quotes: QuotesContainer;
+  oppNoContract: number;
+}> {
+  try {
+    const [statusGroups, acceptedYtdAgg, acceptedQuoteRows, contractLinks] = await Promise.all([
+      prisma.sfQuote.groupBy({
+        by: ["status"],
+        _count: { id: true },
+      }),
+      prisma.sfQuote.aggregate({
+        where: { status: "Accepted", sfCreatedDate: { gte: yearStart } },
+        _count: { id: true },
+        _sum: { netAmount: true },
+      }),
+      prisma.sfQuote.findMany({
+        where: { status: "Accepted", opportunityId: { not: null } },
+        select: { id: true, opportunityId: true },
+      }),
+      prisma.sfContract.findMany({
+        where: { opportunityId: { not: null } },
+        select: { opportunityId: true, stripeSubscriptionId: true },
+      }),
+    ]);
+
+    const byStatus = statusGroups.map((row) => ({
+      status: row.status ?? "unknown",
+      count: row._count.id,
+    }));
+
+    const acceptedYtd = acceptedYtdAgg._count.id;
+    const acceptedYtdAmountCents = Math.round(
+      (acceptedYtdAgg._sum.netAmount ?? 0) * 100,
+    );
+
+    const contractByOpportunity = new Map<
+      string,
+      { hasContract: boolean; hasStripeSub: boolean }
+    >();
+    for (const contract of contractLinks) {
+      if (!contract.opportunityId) continue;
+      const current = contractByOpportunity.get(contract.opportunityId) ?? {
+        hasContract: false,
+        hasStripeSub: false,
+      };
+      current.hasContract = true;
+      current.hasStripeSub = current.hasStripeSub || !!contract.stripeSubscriptionId;
+      contractByOpportunity.set(contract.opportunityId, current);
+    }
+
+    let acceptedNoContract = 0;
+    let acceptedNoSub = 0;
+    const oppIdsWithoutContract = new Set<string>();
+    for (const quote of acceptedQuoteRows) {
+      const opportunityId = quote.opportunityId;
+      if (!opportunityId) continue;
+      const linkage = contractByOpportunity.get(opportunityId);
+      if (!linkage?.hasContract) {
+        acceptedNoContract += 1;
+        oppIdsWithoutContract.add(opportunityId);
+      }
+      if (!linkage?.hasStripeSub) {
+        acceptedNoSub += 1;
+      }
+    }
+
+    return {
+      quotes: {
+        total: byStatus.reduce((sum, item) => sum + item.count, 0),
+        byStatus,
+        acceptedYtd,
+        acceptedYtdAmountCents,
+        acceptedNoSub,
+        acceptedNoContract,
+        expiredOpen: 0,
+        source: "mirror",
+      },
+      oppNoContract: oppIdsWithoutContract.size,
+    };
+  } catch {
+    return {
+      quotes: {
+        total: 0,
+        byStatus: [],
+        acceptedYtd: 0,
+        acceptedYtdAmountCents: 0,
+        acceptedNoSub: 0,
+        acceptedNoContract: 0,
+        expiredOpen: 0,
+        source: "salesforce_unavailable",
+      },
+      oppNoContract: 0,
+    };
+  }
 }
 
 export async function fetchCsDashboardData(): Promise<CsDashboardData> {
@@ -43,13 +132,13 @@ export async function fetchCsDashboardData(): Promise<CsDashboardData> {
     getWorkspaceTrustSummary(),
   ]);
 
+  const salesforceQuotes = await fetchSalesforceQuoteContainer(yearStart);
+
   // Phase 2: Lighter container queries (run after account summaries complete)
   const [
+    activeContractAccountRows,
     // Reconciliation counts for banner
     activeSubNoContract, activeContractNoSub, contractLinkedToInactiveSub,
-    // Quotes
-    quoteTotal, quoteStatuses, quotesAcceptedNoSub, quotesAcceptedNoContract, quotesExpired,
-    quotesAcceptedAmount,
     // Subscriptions
     subTotal, subActive, subTrialing, subPastDue, subCanceled,
     subActiveMrr, subCanceling,
@@ -61,21 +150,19 @@ export async function fetchCsDashboardData(): Promise<CsDashboardData> {
     // Payments
     payYtdTotal, payYtdAmt, paySucceeded, paySucceededAmt, payFailed, payFailedAmt, payNeedingAction,
     // Opportunities
-    oppsDistinct, oppsNoContract,
+    oppsDistinct,
     // Billing risk for banner
     delinquentCustomers,
   ] = await Promise.all([
+    prisma.sfContract.findMany({
+      where: { status: "Activated", accountId: { not: "" } },
+      select: { accountId: true },
+      distinct: ["accountId"],
+    }),
     // Reconciliation
     prisma.$queryRaw<[{cnt:bigint}]>`SELECT COUNT(*) as cnt FROM stripe_subscriptions s WHERE s.status IN ('active','trialing') AND NOT EXISTS (SELECT 1 FROM sf_contracts c WHERE c.stripe_subscription_id = s.id AND c.status = 'Activated')`.then(r => Number(r[0]?.cnt ?? 0)),
     prisma.sfContract.count({ where: { status: "Activated", stripeSubscriptionId: null } }),
     prisma.$queryRaw<[{cnt:bigint}]>`SELECT COUNT(*) as cnt FROM sf_contracts c WHERE c.status = 'Activated' AND c.stripe_subscription_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM stripe_subscriptions s WHERE s.id = c.stripe_subscription_id AND s.status IN ('active','trialing','past_due'))`.then(r => Number(r[0]?.cnt ?? 0)),
-    // Quotes
-    prisma.quoteRecord.count(),
-    prisma.quoteRecord.groupBy({ by: ["status"], _count: true }),
-    prisma.quoteRecord.count({ where: { status: "accepted", stripeSubscriptionId: null } }),
-    prisma.quoteRecord.count({ where: { status: "accepted", sfContractId: null } }),
-    prisma.quoteRecord.count({ where: { expiresAt: { lt: now }, status: { in: ["draft", "open"] } } }),
-    prisma.quoteRecord.aggregate({ where: { status: "accepted" }, _sum: { totalAmount: true }, _count: true }),
     // Subscriptions
     prisma.stripeSubscription.count(),
     prisma.stripeSubscription.count({ where: { status: "active" } }),
@@ -110,48 +197,132 @@ export async function fetchCsDashboardData(): Promise<CsDashboardData> {
     prisma.stripePayment.count({ where: { status: { in: ["requires_payment_method", "requires_action"] } } }),
     // Opportunities
     prisma.$queryRaw<[{cnt:bigint}]>`SELECT COUNT(DISTINCT opportunity_id) as cnt FROM sf_contracts WHERE opportunity_id IS NOT NULL`.then(r => Number(r[0]?.cnt ?? 0)),
-    prisma.$queryRaw<[{cnt:bigint}]>`SELECT COUNT(DISTINCT q.opportunity_id) as cnt FROM quote_records q WHERE q.opportunity_id IS NOT NULL AND q.status = 'accepted' AND NOT EXISTS (SELECT 1 FROM sf_contracts c WHERE c.opportunity_id = q.opportunity_id)`.then(r => Number(r[0]?.cnt ?? 0)),
     // Billing risk
     prisma.stripeCustomer.count({ where: { delinquent: true } }),
   ]);
 
   const { accounts } = report;
+  const activeContractAccountIds = new Set(
+    activeContractAccountRows.map((row) => row.accountId).filter(Boolean),
+  );
+  const activeAccounts = accounts.filter((a) => {
+    const normalizedStatus = (a.accountStatus ?? "").trim().toLowerCase();
+    const hasActiveStatus = normalizedStatus === "active customer";
+    const hasActivatedContract = !!a.sfAccountId && activeContractAccountIds.has(a.sfAccountId);
+    return hasActiveStatus || hasActivatedContract;
+  });
+  const activeSalesforceAccounts = activeAccounts.length;
+  const activeStripeCustomers = activeAccounts.filter(
+    (a) => a.activeSubscriptionCount > 0 || !!a.stripeCustomerId,
+  ).length;
+  const accountMismatchCount = activeAccounts.filter(
+    (a) => !a.stripeCustomerId || a.activeSubscriptionCount === 0,
+  ).length;
+  const accountMismatchPct = activeAccounts.length > 0
+    ? Math.round((accountMismatchCount / activeAccounts.length) * 1000) / 10
+    : 0;
+
+  const hasBillingIssue = (account: OmniAccountSummary) =>
+    account.pastDueInvoiceCount > 0 ||
+    account.signalCategories.includes("invoice_risk");
+  const hasLinkageIssue = (account: OmniAccountSummary) =>
+    account.signalCategories.includes("missing_linkage") ||
+    account.signalCategories.includes("correlation_issue") ||
+    account.signalCategories.includes("no_active_subscription");
+  const hasDataQualityIssue = (account: OmniAccountSummary) =>
+    account.dqSummary.issueCount > 0 ||
+    account.signalCategories.includes("data_quality");
+
+  const attentionAccounts = activeAccounts.filter(
+    (account) =>
+      hasBillingIssue(account) ||
+      hasLinkageIssue(account) ||
+      hasDataQualityIssue(account),
+  );
+
+  const topConcerns = [
+    {
+      label: "Billing issues",
+      count: activeAccounts.filter(hasBillingIssue).length,
+    },
+    {
+      label: "Linkage gaps",
+      count: activeAccounts.filter(hasLinkageIssue).length,
+    },
+    {
+      label: "Data quality",
+      count: activeAccounts.filter(hasDataQualityIssue).length,
+    },
+  ].filter((item) => item.count > 0);
 
   // Banner
-  let mrrAtRiskCents = 0;
+  let atRiskMrrCents = 0;
   let billingRiskAccounts = 0;
-  for (const a of accounts) {
-    if (a.renewalSummary.hasOverdue || a.renewalSummary.hasDueSoon || a.renewalSummary.hasCancelling) {
-      mrrAtRiskCents += a.renewalSummary.renewalMrrCents;
+  for (const a of activeAccounts) {
+    if (hasBillingIssue(a) || hasLinkageIssue(a)) {
+      atRiskMrrCents += a.activeMrrCents;
     }
-    if (a.pastDueInvoiceCount > 0 || a.signalCategories.includes("invoice_risk")) billingRiskAccounts++;
+    if (hasBillingIssue(a)) {
+      billingRiskAccounts++;
+    }
   }
 
   const lifecycleBreaks = activeSubNoContract + activeContractNoSub + contractLinkedToInactiveSub;
-  const totalArrCents = report.totalMrrCents * 12;
-  const atRiskArrCents = mrrAtRiskCents * 12;
+  const totalMrrCents = subActiveMrr;
+  const totalArrCents = totalMrrCents * 12;
+  const atRiskArrCents = atRiskMrrCents * 12;
 
   const banner: BannerMetrics = {
-    accounts: report.totalAccounts,
-    needAttention: report.accountsWithSignals,
-    totalMrrCents: report.totalMrrCents,
+    accounts: activeAccounts.length,
+    activeSalesforceAccounts,
+    activeStripeCustomers,
+    accountMismatchCount,
+    accountMismatchPct,
+    needAttention: attentionAccounts.length,
+    topConcerns,
+    totalMrrCents,
     totalArrCents,
     atRiskArrCents,
+    atRiskLabel: "ARR across active accounts with billing or linkage risk",
     billingRisk: billingRiskAccounts + delinquentCustomers,
     lifecycleBreaks,
   };
 
-  // Priority lanes + rows (same as before)
-  const renewalRisk = accounts.filter(a => a.signalCategories.includes("renewal_risk")).sort((a, b) => {
-    if (a.renewalSummary.hasOverdue !== b.renewalSummary.hasOverdue) return a.renewalSummary.hasOverdue ? -1 : 1;
-    return (a.renewalSummary.daysToNearestRenewal ?? Infinity) - (b.renewalSummary.daysToNearestRenewal ?? Infinity);
-  }).slice(0, 10);
-  const dataQuality = accounts.filter(a => a.dqSummary.issueCount > 0).sort((a, b) => {
+  // Priority lanes + rows — active account queue for CSM actionability
+  const renewalsThisMonth = activeAccounts
+    .filter((account) => {
+      if (!account.renewalSummary.nearestRenewalDate) return false;
+      const nearestRenewal = new Date(account.renewalSummary.nearestRenewalDate);
+      if (Number.isNaN(nearestRenewal.getTime())) return false;
+      return nearestRenewal < monthEnd;
+    })
+    .sort((a, b) => {
+      const aDays = a.renewalSummary.daysToNearestRenewal ?? Number.POSITIVE_INFINITY;
+      const bDays = b.renewalSummary.daysToNearestRenewal ?? Number.POSITIVE_INFINITY;
+      return aDays - bDays || b.activeMrrCents - a.activeMrrCents;
+    })
+    .slice(0, 10);
+  const dataQuality = activeAccounts.filter(a => a.dqSummary.issueCount > 0).sort((a, b) => {
     const r: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
     return (r[b.dqSummary.worstSeverity ?? ""] ?? 0) - (r[a.dqSummary.worstSeverity ?? ""] ?? 0) || b.dqSummary.issueCount - a.dqSummary.issueCount;
   }).slice(0, 10);
-  const missingLinkage = accounts.filter(a => a.signalCategories.includes("missing_linkage") || a.signalCategories.includes("correlation_issue")).sort((a, b) => b.activeMrrCents - a.activeMrrCents).slice(0, 10);
-  const invoiceRisk = accounts.filter(a => a.pastDueInvoiceCount > 0).sort((a, b) => b.pastDueInvoiceCount - a.pastDueInvoiceCount).slice(0, 10);
+  const missingLinkage = activeAccounts
+    .filter(
+      (a) =>
+        a.signalCategories.includes("missing_linkage") ||
+        a.signalCategories.includes("correlation_issue") ||
+        a.signalCategories.includes("no_active_subscription"),
+    )
+    .sort((a, b) => b.activeMrrCents - a.activeMrrCents)
+    .slice(0, 10);
+  const invoiceRisk = activeAccounts
+    .filter((a) => a.pastDueInvoiceCount > 0)
+    .sort((a, b) => b.pastDueInvoiceCount - a.pastDueInvoiceCount || b.activeMrrCents - a.activeMrrCents)
+    .slice(0, 10);
+  const unmanagedAccounts = activeAccounts
+    .filter((a) => !a.csmName)
+    .sort((a, b) => b.activeMrrCents - a.activeMrrCents)
+    .slice(0, 10);
 
   const seen = new Set<string>();
   const priorityRows: PriorityAccountRow[] = [];
@@ -160,10 +331,65 @@ export async function fetchCsDashboardData(): Promise<CsDashboardData> {
     seen.add(a.omniAccountId);
     priorityRows.push({ omniAccountId: a.omniAccountId, displayName: a.displayName, csmName: a.csmName, activeMrrCents: a.activeMrrCents, breakLocation: bl, riskReason: rr, severity: sev, isFlagged: a.reviewState.isFlagged, href });
   }
-  for (const a of renewalRisk) { const rs = a.renewalSummary; addRow(a, "Subscription → Renewal", rs.hasOverdue ? "Overdue" : rs.hasCancelling ? "Cancelling" : "Due soon", rs.hasOverdue || rs.hasCancelling ? "critical" : "high", `/cs/renewals?account=${encodeURIComponent(a.omniAccountId)}`); }
-  for (const a of invoiceRisk) { addRow(a, "Invoice → Payment", `${a.pastDueInvoiceCount} past due`, "critical", `/customers/${encodeURIComponent(a.omniAccountId)}`); }
-  for (const a of dataQuality) { addRow(a, "Data Quality", `${a.dqSummary.issueCount} issues`, a.dqSummary.worstSeverity === "critical" ? "critical" : "high", `/cs/data-quality?account=${encodeURIComponent(a.omniAccountId)}`); }
-  for (const a of missingLinkage) { const p = []; if (!a.hasSalesforce) p.push("No SF"); if (!a.hasStripe) p.push("No Stripe"); addRow(a, "Contract ↔ Sub", p.join(", "), "medium", `/customers/${encodeURIComponent(a.omniAccountId)}`); }
+  for (const a of invoiceRisk) {
+    addRow(
+      a,
+      "Invoice → Payment",
+      `${a.pastDueInvoiceCount} past due`,
+      "critical",
+      `/customers/${encodeURIComponent(a.omniAccountId)}`,
+    );
+  }
+  for (const a of renewalsThisMonth) {
+    const days = a.renewalSummary.daysToNearestRenewal;
+    const reason =
+      days == null
+        ? "Renews this month"
+        : days < 0
+          ? `${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"} overdue`
+          : days === 0
+            ? "Expires today"
+            : `${days} day${days === 1 ? "" : "s"} until expiry`;
+    const severity = days != null && days <= 0 ? "critical" : days != null && days <= 7 ? "high" : "medium";
+    addRow(
+      a,
+      "Renewal This Month",
+      reason,
+      severity,
+      `/cs/renewals?account=${encodeURIComponent(a.omniAccountId)}`,
+    );
+  }
+  for (const a of unmanagedAccounts) {
+    addRow(
+      a,
+      "CSM Coverage",
+      "No assigned CSM",
+      "high",
+      `/customers/${encodeURIComponent(a.omniAccountId)}`,
+    );
+  }
+  for (const a of missingLinkage) {
+    const issues = [];
+    if (!a.hasSalesforce) issues.push("No SF");
+    if (!a.hasStripe) issues.push("No Stripe");
+    if (a.signalCategories.includes("no_active_subscription")) issues.push("No active sub");
+    addRow(
+      a,
+      "Contract ↔ Sub",
+      issues.join(", "),
+      "medium",
+      `/customers/${encodeURIComponent(a.omniAccountId)}`,
+    );
+  }
+  for (const a of dataQuality) {
+    addRow(
+      a,
+      "Data Quality",
+      `${a.dqSummary.issueCount} issues`,
+      a.dqSummary.worstSeverity === "critical" ? "critical" : "high",
+      `/cs/data-quality?account=${encodeURIComponent(a.omniAccountId)}`,
+    );
+  }
   priorityRows.sort((a, b) => ({ critical: 0, high: 1, medium: 2 }[a.severity]) - ({ critical: 0, high: 1, medium: 2 }[b.severity]));
 
   return {
@@ -172,18 +398,10 @@ export async function fetchCsDashboardData(): Promise<CsDashboardData> {
     priorityRows: priorityRows.slice(0, 15),
     opportunities: {
       trackedTotal: oppsDistinct,
-      noContractFromQuote: oppsNoContract,
+      noContractFromQuote: salesforceQuotes.oppNoContract,
       isPartial: true,
     },
-    quotes: {
-      total: quoteTotal,
-      byStatus: quoteStatuses.map(s => ({ status: s.status, count: s._count })),
-      acceptedTotal: quotesAcceptedAmount._count,
-      acceptedAmountCents: quotesAcceptedAmount._sum.totalAmount ?? 0,
-      acceptedNoSub: quotesAcceptedNoSub,
-      acceptedNoContract: quotesAcceptedNoContract,
-      expiredOpen: quotesExpired,
-    },
+    quotes: salesforceQuotes.quotes,
     subscriptions: {
       total: subTotal,
       active: subActive,
@@ -221,7 +439,7 @@ export async function fetchCsDashboardData(): Promise<CsDashboardData> {
       failedAmountCents: payFailedAmt,
       needingAction: payNeedingAction,
     },
-    lanes: { renewalRisk, dataQuality, missingLinkage, invoiceRisk },
+    lanes: { renewalRisk: renewalsThisMonth, dataQuality, missingLinkage, invoiceRisk },
   };
 }
 
@@ -277,18 +495,20 @@ export async function fetchAccountSnapshot(omniAccountId: string): Promise<Accou
     ci.sfAccountId
       ? prisma.sfContract.findMany({
           where: { accountId: ci.sfAccountId },
-          select: { id: true, contractNumber: true, status: true, startDate: true, endDate: true, stripeSubscriptionId: true, mrr: true },
+          select: { id: true, contractNumber: true, status: true, startDate: true, endDate: true, stripeSubscriptionId: true, opportunityId: true, mrr: true },
           orderBy: { startDate: "desc" },
           take: 5,
         })
       : Promise.resolve([]),
-    // Quotes
-    prisma.quoteRecord.findMany({
-      where: { customerId: omniAccountId },
-      select: { id: true, status: true, quoteType: true, totalAmount: true, sfContractId: true, stripeSubscriptionId: true, opportunityId: true },
-      orderBy: { createdAt: "desc" },
-      take: 5,
-    }),
+    // Quotes (from mirror)
+    ci.sfAccountId
+      ? prisma.sfQuote.findMany({
+          where: { accountId: ci.sfAccountId },
+          select: { id: true, name: true, status: true, netAmount: true, opportunityId: true },
+          orderBy: { sfCreatedDate: "desc" },
+          take: 5,
+        })
+      : Promise.resolve([]),
     // Payments
     ci.stripeCustomerId
       ? prisma.stripePayment.findMany({
@@ -332,16 +552,15 @@ export async function fetchAccountSnapshot(omniAccountId: string): Promise<Accou
     startDate: c.startDate?.toISOString() ?? null,
     endDate: c.endDate?.toISOString() ?? null,
     stripeSubId: c.stripeSubscriptionId,
+    opportunityId: c.opportunityId,
     mrr: c.mrr,
   }));
 
   const quoteRows = quotes.map(q => ({
     id: q.id,
-    status: q.status,
-    quoteType: q.quoteType,
-    totalAmount: q.totalAmount,
-    sfContractId: q.sfContractId,
-    stripeSubId: q.stripeSubscriptionId,
+    name: q.name ?? "Untitled",
+    status: q.status ?? "Unknown",
+    totalAmount: q.netAmount == null ? null : Math.round(q.netAmount * 100),
     opportunityId: q.opportunityId,
   }));
 
@@ -369,8 +588,8 @@ export async function fetchAccountSnapshot(omniAccountId: string): Promise<Accou
   const breaks: string[] = [];
   if (hasActiveContract && !hasActiveSubscription) breaks.push("Active contract → no active Stripe subscription");
   if (hasActiveSubscription && !hasActiveContract) breaks.push("Active subscription → no active SF contract");
-  if (quoteRows.some(q => q.status === "accepted" && !q.sfContractId)) breaks.push("Accepted quote → no SF contract");
-  if (quoteRows.some(q => q.status === "accepted" && !q.stripeSubId)) breaks.push("Accepted quote → no subscription created");
+  if (quoteRows.some(q => q.status.toLowerCase() === "accepted" && q.opportunityId && !contractRows.some(c => c.opportunityId === q.opportunityId))) breaks.push("Accepted quote → no SF contract");
+  if (quoteRows.some(q => q.status.toLowerCase() === "accepted" && q.opportunityId && !contractRows.some(c => c.opportunityId === q.opportunityId && c.stripeSubId))) breaks.push("Accepted quote → no subscription created");
   if (pastDueInvoices.length > 0) breaks.push(`${pastDueInvoices.length} past due invoice${pastDueInvoices.length > 1 ? "s" : ""}`);
   if (isDelinquent) breaks.push("Customer is delinquent");
   if (failedPayments.length > 0) breaks.push(`${failedPayments.length} payment${failedPayments.length > 1 ? "s" : ""} needing action`);

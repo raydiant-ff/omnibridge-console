@@ -1,11 +1,12 @@
 import { PrismaClient } from "../generated/client";
 
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
+const enableQueryLogging = process.env.OMNI_DEBUG_SQL === "true";
 
 export const prisma =
   globalForPrisma.prisma ??
   new PrismaClient({
-    log: process.env.NODE_ENV === "development" ? ["query"] : [],
+    log: enableQueryLogging ? ["query"] : [],
   });
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { signOut, useSession } from "next-auth/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import {
   Briefcase,
@@ -29,6 +29,9 @@ import {
   Search,
   ShieldAlert,
   ClipboardList,
+  MessagesSquare,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { SidebarShell, SidebarNavSection, SidebarFooter } from "@/components/shell";
 
@@ -68,6 +71,11 @@ const NAV_SECTIONS: NavSection[] = [
         label: "Customers",
         href: "/customers",
         icon: <Users className="size-4" />,
+      },
+      {
+        label: "Support",
+        href: "/support",
+        icon: <MessagesSquare className="size-4" />,
       },
       {
         label: "Customer Success",
@@ -155,55 +163,128 @@ export function Sidebar() {
   const pathname = usePathname();
   const { data: session } = useSession();
   const isAdmin = (session?.user as { role?: string } | undefined)?.role === "admin";
+  const compactMode = pathname.startsWith("/support");
+  const [collapsed, setCollapsed] = useState(compactMode);
 
-  const initials = (session?.user?.name ?? "U")
+  useEffect(() => {
+    setCollapsed(compactMode);
+  }, [compactMode]);
+
+  const displayName = session?.user?.name ?? "Francisco Fiedler";
+  const displayEmail = session?.user?.email ?? "francisco.fiedler@displai.ai";
+
+  const initials = displayName
     .split(" ")
     .map((w) => w[0])
     .join("")
     .toUpperCase()
     .slice(0, 2);
 
+  const compactItems = NAV_SECTIONS.flatMap((section) =>
+    section.items.map((item) => ({
+      href: item.href,
+      label: item.label,
+      icon: item.icon,
+      active: pathname === item.href || pathname.startsWith(item.href + "/"),
+    })),
+  );
+
   return (
-    <SidebarShell>
+    <SidebarShell collapsed={collapsed}>
       {/* Logo */}
-      <div className="h-14 px-5 flex items-center gap-3 border-b border-border shrink-0">
+      <div
+        className={cn(
+          "h-16 border-b border-sidebar-border shrink-0",
+          collapsed ? "px-3 flex items-center justify-center" : "px-5 flex items-center gap-3",
+        )}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/images/displai-favicon.png" alt="Omni" className="w-6 h-6 rounded-md" />
-        <span className="font-semibold text-foreground text-sm tracking-tight">Omni</span>
-      </div>
-
-      <nav className="flex-1 overflow-y-auto py-3 space-y-1">
-        {NAV_SECTIONS.map((section) => (
-          <SidebarNavSection key={section.header} label={section.header}>
-            {section.items.map((item) => (
-              <NavEntry key={item.href} item={item} pathname={pathname} isAdmin={isAdmin} />
-            ))}
-          </SidebarNavSection>
-        ))}
-      </nav>
-
-      <SidebarFooter>
-        <div className="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-muted/60 transition-colors">
-          <div className="w-7 h-7 rounded-full bg-muted flex items-center justify-center shrink-0">
-            <span className="text-foreground text-xs font-medium">{initials}</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate leading-tight">
-              {session?.user?.name ?? "User"}
-            </p>
-            <p className="text-xs text-muted-foreground truncate leading-tight">
-              {session?.user?.email}
-            </p>
-          </div>
+        <img src="/images/displai-favicon.png" alt="Omni" className="w-7 h-7 rounded-lg" />
+        {!collapsed && (
+          <span className="font-semibold text-sidebar-foreground text-[19px] tracking-tight">Omni</span>
+        )}
+        {compactMode && (
           <button
             type="button"
-            className="p-1.5 rounded-md hover:bg-muted transition-colors"
-            onClick={() => signOut({ callbackUrl: "/login" })}
-            title="Sign out"
+            onClick={() => setCollapsed((current) => !current)}
+            className={cn(
+              "rounded-xl border border-sidebar-border bg-sidebar-accent/55 p-2 text-muted-foreground transition-colors hover:bg-sidebar hover:text-foreground",
+              collapsed ? "absolute top-4 right-3" : "ml-auto",
+            )}
+            title={collapsed ? "Expand navigation" : "Collapse navigation"}
           >
-            <LogOut className="w-3.5 h-3.5 text-muted-foreground" />
+            {collapsed ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
           </button>
-        </div>
+        )}
+      </div>
+
+      {compactMode && collapsed ? (
+        <nav className="flex-1 overflow-y-auto py-4">
+          <div className="flex flex-col items-center gap-2 px-2">
+            {compactItems.map((item) => (
+              <Link
+                key={item.href}
+                href={item.href}
+                title={item.label}
+                className={cn(
+                  "flex size-11 items-center justify-center rounded-2xl border transition-colors",
+                  item.active
+                    ? "border-primary/20 bg-primary/6 text-foreground"
+                    : "border-transparent text-muted-foreground hover:border-sidebar-border hover:bg-sidebar-accent/45 hover:text-foreground",
+                )}
+              >
+                <span className="flex size-5 items-center justify-center">{item.icon}</span>
+              </Link>
+            ))}
+          </div>
+        </nav>
+      ) : (
+        <nav className="flex-1 overflow-y-auto py-4 space-y-1">
+          {NAV_SECTIONS.map((section) => (
+            <SidebarNavSection key={section.header} label={section.header}>
+              {section.items.map((item) => (
+                <NavEntry key={item.href} item={item} pathname={pathname} isAdmin={isAdmin} />
+              ))}
+            </SidebarNavSection>
+          ))}
+        </nav>
+      )}
+
+      <SidebarFooter>
+        {compactMode && collapsed ? (
+          <div className="flex justify-center">
+            <button
+              type="button"
+              className="flex size-11 items-center justify-center rounded-2xl border border-sidebar-border bg-sidebar-accent/55 transition-colors hover:bg-sidebar"
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              title={displayName}
+            >
+              <span className="text-foreground text-[13px] font-semibold">{initials}</span>
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-3 rounded-xl border border-sidebar-border bg-sidebar-accent/55 px-3.5 py-3.5 shadow-[0_1px_2px_0_rgba(0,0,0,0.04)] transition-colors">
+            <div className="w-9 h-9 rounded-xl border border-sidebar-border/80 bg-sidebar flex items-center justify-center shrink-0">
+              <span className="text-foreground text-[13px] font-semibold">{initials}</span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[15px] font-semibold text-foreground truncate leading-tight">
+                {displayName}
+              </p>
+              <p className="text-[12px] text-muted-foreground truncate leading-tight">
+                {displayEmail}
+              </p>
+            </div>
+            <button
+              type="button"
+              className="p-2 rounded-lg hover:bg-sidebar transition-colors"
+              onClick={() => signOut({ callbackUrl: "/login" })}
+              title="Sign out"
+            >
+              <LogOut className="w-3.5 h-3.5 text-muted-foreground" />
+            </button>
+          </div>
+        )}
       </SidebarFooter>
     </SidebarShell>
   );
@@ -221,14 +302,14 @@ function NavEntry({ item, pathname, isAdmin }: { item: NavItem; pathname: string
         <Link
           href={item.href}
           className={cn(
-            "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-colors",
+            "relative w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-[15px] font-medium transition-all duration-150",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
             isActive
-              ? "bg-muted text-foreground font-medium"
-              : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+              ? "bg-sidebar text-foreground"
+              : "text-muted-foreground hover:bg-sidebar-accent/45 hover:text-foreground",
           )}
         >
-          <span className="w-4 h-4 flex items-center justify-center shrink-0">{item.icon}</span>
+          <span className="w-5 h-5 flex items-center justify-center shrink-0">{item.icon}</span>
           {item.label}
         </Link>
       </li>
@@ -241,14 +322,14 @@ function NavEntry({ item, pathname, isAdmin }: { item: NavItem; pathname: string
         type="button"
         onClick={() => setExpanded(!expanded)}
         className={cn(
-          "w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-colors",
+          "w-full flex items-center gap-3 px-3.5 py-3 rounded-xl text-[15px] font-medium transition-all duration-150",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1",
           isActive
-            ? "text-foreground font-medium"
-            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+            ? "bg-sidebar text-foreground"
+            : "text-muted-foreground hover:bg-sidebar-accent/45 hover:text-foreground",
         )}
       >
-        <span className="w-4 h-4 flex items-center justify-center shrink-0">{item.icon}</span>
+        <span className="w-5 h-5 flex items-center justify-center shrink-0">{item.icon}</span>
         <span className="flex-1 text-left">{item.label}</span>
         {expanded ? (
           <ChevronDown className="size-3 text-muted-foreground" />
@@ -258,7 +339,7 @@ function NavEntry({ item, pathname, isAdmin }: { item: NavItem; pathname: string
       </button>
 
       {expanded && (
-        <ul className="ml-[18px] mt-0.5 flex flex-col gap-px border-l border-border pl-3">
+        <ul className="ml-5 mt-1 flex flex-col gap-1 border-l border-sidebar-border/80 pl-3.5">
           {visibleChildren!.map((child) => (
             <NavChildEntry key={child.href + child.label} child={child} pathname={pathname} />
           ))}
@@ -285,13 +366,13 @@ function NavChildEntry({ child, pathname }: { child: NavChild; pathname: string 
         <Link
           href={child.href}
           className={cn(
-            "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+            "flex items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] transition-colors",
             childActive
-              ? "bg-muted text-foreground font-medium"
-              : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+              ? "bg-sidebar text-foreground font-medium"
+              : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/45",
           )}
         >
-          <span className="w-3.5 h-3.5 flex items-center justify-center shrink-0">{child.icon}</span>
+          <span className="w-4 h-4 flex items-center justify-center shrink-0">{child.icon}</span>
           {child.label}
         </Link>
       </li>
@@ -316,13 +397,13 @@ function NavChildEntry({ child, pathname }: { child: NavChild; pathname: string 
         type="button"
         onClick={handleClick}
         className={cn(
-          "flex w-full items-center gap-2 rounded-md px-2.5 py-1.5 text-sm transition-colors",
+          "flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-[14px] transition-colors",
           childActive || anyGrandchildActive
-            ? "text-foreground font-medium"
-            : "text-muted-foreground hover:text-foreground hover:bg-muted/50",
+            ? "bg-sidebar text-foreground font-medium"
+            : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/45",
         )}
       >
-        <span className="w-3.5 h-3.5 flex items-center justify-center shrink-0">{child.icon}</span>
+        <span className="w-4 h-4 flex items-center justify-center shrink-0">{child.icon}</span>
         <span className="flex-1 text-left">{child.label}</span>
         {expanded ? (
           <ChevronDown className="size-3 text-muted-foreground" />
@@ -332,7 +413,7 @@ function NavChildEntry({ child, pathname }: { child: NavChild; pathname: string 
       </button>
 
       {expanded && (
-        <ul className="ml-4 mt-px flex flex-col gap-px border-l border-border pl-2.5">
+        <ul className="ml-5 mt-1 flex flex-col gap-1 border-l border-sidebar-border/80 pl-3">
           {child.children!.map((gc) => {
             const gcActive = pathname === gc.href;
             return (
@@ -340,13 +421,13 @@ function NavChildEntry({ child, pathname }: { child: NavChild; pathname: string 
                 <Link
                   href={gc.href}
                   className={cn(
-                    "flex items-center gap-2 rounded-md px-2 py-1.5 text-xs transition-colors",
+                    "flex items-center gap-2 rounded-md px-2.5 py-1.5 text-[13px] transition-colors",
                     gcActive
-                      ? "bg-muted text-foreground font-medium"
-                      : "text-muted-foreground hover:text-foreground hover:bg-muted/40",
+                      ? "bg-sidebar text-foreground font-medium"
+                      : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent/40",
                   )}
                 >
-                  <span className="w-3 h-3 flex items-center justify-center shrink-0">{gc.icon}</span>
+                  <span className="w-3.5 h-3.5 flex items-center justify-center shrink-0">{gc.icon}</span>
                   {gc.label}
                 </Link>
               </li>

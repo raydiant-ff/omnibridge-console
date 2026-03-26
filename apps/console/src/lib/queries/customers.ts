@@ -3,6 +3,14 @@
 import { cached } from "@/lib/cache";
 import { prisma } from "@omnibridge/db";
 import { requireSession } from "@omnibridge/auth";
+import {
+  searchAccounts,
+  getUserIdByEmail,
+  getAccountsByCsm,
+  getAllAccounts,
+  getAccountDetail,
+} from "@omnibridge/salesforce";
+import { getStripeClient } from "@omnibridge/stripe";
 import { flags } from "@/lib/feature-flags";
 import { SF_ACCOUNT_BASE_WHERE } from "@/lib/repo";
 
@@ -110,7 +118,6 @@ async function searchSalesforceAccounts(query: string): Promise<UnifiedCustomer[
   if (flags.useMockSalesforce) return [];
 
   try {
-    const { searchAccounts } = await import("@omnibridge/salesforce");
     const accounts = await searchAccounts(query) as {
       Id: string;
       Name: string;
@@ -137,7 +144,6 @@ async function searchStripeCustomers(query: string): Promise<UnifiedCustomer[]> 
   if (flags.useMockStripe) return [];
 
   try {
-    const { getStripeClient } = await import("@omnibridge/stripe");
     const stripe = getStripeClient();
     const result = await stripe.customers.search({
       query: `name~"${query}" OR email~"${query}"`,
@@ -211,7 +217,6 @@ function mapSfAccount(a: {
 }
 
 async function _fetchMyAccountsFromApi(email: string): Promise<MyAccount[]> {
-  const { getUserIdByEmail, getAccountsByCsm } = await import("@omnibridge/salesforce");
   const userId = await getUserIdByEmail(email);
   if (!userId) return [];
 
@@ -248,7 +253,6 @@ export async function getMyAccounts(): Promise<MyAccount[]> {
 }
 
 async function _fetchAllAccountsFromApi(): Promise<MyAccount[]> {
-  const { getAllAccounts } = await import("@omnibridge/salesforce");
   const accounts = await getAllAccounts();
   return accounts.map(mapSfAccount);
 }
@@ -309,7 +313,6 @@ export interface AccountDetail {
 }
 
 async function _fetchAccountDetailFromApi(accountId: string): Promise<AccountDetail | null> {
-  const { getAccountDetail } = await import("@omnibridge/salesforce");
   const a = await getAccountDetail(accountId);
   if (!a) return null;
 
@@ -441,7 +444,6 @@ export async function resolveCustomerForOpportunity(
 
   if (!flags.useMockStripe && accountName) {
     try {
-      const { getStripeClient } = await import("@omnibridge/stripe");
       const stripe = getStripeClient();
       const result = await stripe.customers.search({
         query: `name~"${accountName.replace(/"/g, '\\"')}"`,
@@ -525,7 +527,6 @@ export async function resolveSfAccountForStripeCustomer(
   if (flags.useMockSalesforce) return null;
 
   try {
-    const { soql } = await import("@omnibridge/salesforce");
     const safeId = stripeCustomerId.replace(/'/g, "\\'");
     const accounts = await soql<{ Id: string; Name: string }>(
       `SELECT Id, Name FROM Account WHERE Stripe_Customer_ID__c = '${safeId}' LIMIT 1`,
@@ -548,7 +549,6 @@ export async function getAccountContactInfo(
   }
 
   try {
-    const { getAccountDetail } = await import("@omnibridge/salesforce");
     const account = await getAccountDetail(sfAccountId);
     if (!account) return { contactName: null, contactEmail: null };
 

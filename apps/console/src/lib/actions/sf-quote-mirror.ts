@@ -1,5 +1,12 @@
 "use server";
 
+import {
+  createSObject,
+  soql,
+  escapeSoql,
+  updateSObject,
+  getAccessToken,
+} from "@omnibridge/salesforce";
 import { flags } from "@/lib/feature-flags";
 import {
   contractTermMonths,
@@ -66,8 +73,6 @@ export async function createSfQuoteMirror(
       log,
     };
   }
-
-  const { createSObject } = await import("@omnibridge/salesforce");
 
   const productMap = resolveProductMappings(input.lineItems);
 
@@ -147,7 +152,6 @@ export async function createSfQuoteMirror(
     log.push(`[SF] Created Stripe_Quote__c: ${sfQuoteId}`);
 
     try {
-      const { soql, escapeSoql } = await import("@omnibridge/salesforce");
       const [sfQuote] = await soql<{ Name: string }>(
         `SELECT Name FROM Stripe_Quote__c WHERE Id = '${escapeSoql(sfQuoteId)}' LIMIT 1`,
       );
@@ -227,7 +231,6 @@ export async function updateSfQuoteStatus(
     return log;
   }
 
-  const { updateSObject } = await import("@omnibridge/salesforce");
   try {
     await updateSObject("Stripe_Quote__c", sfQuoteId, {
       Status__c: status,
@@ -254,7 +257,6 @@ export async function closeOpportunityWon(
     return log;
   }
 
-  const { updateSObject } = await import("@omnibridge/salesforce");
   try {
     await updateSObject("Opportunity", opportunityId, {
       StageName: "Closed Won",
@@ -298,8 +300,6 @@ export async function createSfContractFromQuote(
     );
     return { contractId: mockId, log };
   }
-
-  const { createSObject, updateSObject } = await import("@omnibridge/salesforce");
 
   const contractStart = input.effectiveDate
     ? new Date(input.effectiveDate)
@@ -377,8 +377,6 @@ export async function createSfSubscriptionsFromQuote(
     return { subscriptionIds: [], log };
   }
 
-  const { createSObject } = await import("@omnibridge/salesforce");
-
   const subscriptionIds: string[] = [];
   for (let i = 0; i < input.lineItems.length; i++) {
     const li = input.lineItems[i]!;
@@ -445,7 +443,6 @@ export async function uploadFileToSfRecord(
 ): Promise<string | null> {
   if (dryRun) return null;
 
-  const { getAccessToken } = await import("@omnibridge/salesforce");
   const { accessToken, instanceUrl } = await getAccessToken();
 
   const base64Body = pdfBuffer.toString("base64");

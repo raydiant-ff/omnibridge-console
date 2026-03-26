@@ -1,5 +1,6 @@
 "use server";
 
+import { soql } from "@omnibridge/salesforce";
 import { flags } from "@/lib/feature-flags";
 import { getMockSalesforceData, type MockSalesforceData } from "@/lib/mock-data";
 
@@ -9,8 +10,6 @@ export async function getSalesforceDataForCustomer(sfAccountId: string | null): 
   if (flags.useMockSalesforce) {
     return getMockSalesforceData(sfAccountId);
   }
-
-  const { soql } = await import("@omnibridge/salesforce");
 
   const [accounts, contacts, opportunities] = await Promise.all([
     soql<Record<string, unknown>>(

@@ -13,10 +13,16 @@ import type { WorkspaceTrustSummary } from "@/lib/omni/contracts/workspace-trust
 
 export interface BannerMetrics {
   accounts: number;
+  activeSalesforceAccounts: number;
+  activeStripeCustomers: number;
+  accountMismatchCount: number;
+  accountMismatchPct: number;
   needAttention: number;
+  topConcerns: { label: string; count: number }[];
   totalMrrCents: number;
   totalArrCents: number;
   atRiskArrCents: number;
+  atRiskLabel: string;
   billingRisk: number;
   lifecycleBreaks: number;
 }
@@ -53,11 +59,12 @@ export interface OpportunityContainer {
 export interface QuotesContainer {
   total: number;
   byStatus: { status: string; count: number }[];
-  acceptedTotal: number;
-  acceptedAmountCents: number;
+  acceptedYtd: number;
+  acceptedYtdAmountCents: number;
   acceptedNoSub: number;
   acceptedNoContract: number;
   expiredOpen: number;
+  source: "mirror" | "salesforce" | "salesforce_unavailable";
 }
 
 export interface SubscriptionsContainer {
@@ -137,8 +144,8 @@ export type FlagReason = "missing_linkage" | "data_quality" | "correlation_issue
 export interface AccountSnapshot {
   subscriptions: { id: string; status: string; collectionMethod: string; mrrCents: number; cancelAtPeriodEnd: boolean }[];
   invoices: { id: string; number: string | null; status: string; amountDue: number; amountRemaining: number; dueDate: string | null }[];
-  contracts: { id: string; contractNumber: string | null; status: string; startDate: string | null; endDate: string | null; stripeSubId: string | null; mrr: number | null }[];
-  quotes: { id: string; status: string; quoteType: string; totalAmount: number | null; sfContractId: string | null; stripeSubId: string | null; opportunityId: string | null }[];
+  contracts: { id: string; contractNumber: string | null; status: string; startDate: string | null; endDate: string | null; stripeSubId: string | null; opportunityId: string | null; mrr: number | null }[];
+  quotes: { id: string; name: string; status: string; totalAmount: number | null; opportunityId: string | null }[];
   payments: { id: string; status: string; amount: number; cardLast4: string | null }[];
   isDelinquent: boolean;
   hasDefaultPm: boolean;

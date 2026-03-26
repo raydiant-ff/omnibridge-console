@@ -19,6 +19,12 @@
   },
   "iconLibrary": "lucide",
   "registries": {
+    "@shadcnblocks": {
+      "url": "https://shadcnblocks.com/r/{name}",
+      "headers": {
+        "Authorization": "Bearer ${SHADCNBLOCKS_API_KEY}"
+      }
+    },
     "@shadcnuikit": "https://shadcnuikit.com/r/{name}.json",
     "@shadcn-dashboard": "https://shadcn-dashboard.com/r/{name}.json",
     "@tailwind-admin": "https://tailwind-admin.com/r/{name}.json",

@@ -73,7 +73,53 @@ export function getServerSession() {
   return nextAuthGetServerSession(authOptions);
 }
 
+function isLocalBrowseMode() {
+  return process.env.NODE_ENV === "development" && process.env.OMNI_REQUIRE_AUTH !== "true";
+}
+
+async function getLocalBrowseSession() {
+  const adminEmail =
+    process.env.ADMIN_EMAIL?.trim() ||
+    "francisco.fiedler@displai.ai";
+
+  const user = await prisma.user.findUnique({
+    where: { email: adminEmail },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      role: true,
+    },
+  });
+
+  if (!user) {
+    throw new Error(
+      `[auth] Local browse mode requires a real user row for ${adminEmail}. Run the seed or fix ADMIN_EMAIL.`,
+    );
+  }
+
+  return {
+    user: {
+      id: user.id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    },
+    expires: "2099-12-31T23:59:59.999Z",
+  };
+}
+
+export async function getClientSessionSeed() {
+  if (!isLocalBrowseMode()) {
+    return undefined;
+  }
+  return getLocalBrowseSession();
+}
+
 export async function requireSession() {
+  if (isLocalBrowseMode()) {
+    return getLocalBrowseSession();
+  }
   const session = await getServerSession();
   if (!session?.user) {
     // Dynamic import to avoid requiring 'next' as a direct dependency

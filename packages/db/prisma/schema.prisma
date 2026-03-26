@@ -568,6 +568,7 @@ model SfAccount {
   contacts  SfContact[]
   invoices  SfInvoice[]
   payments  SfPayment[]
+  quotes    SfQuote[]
 }
 
 model SfContract {
@@ -721,6 +722,42 @@ model SfPayment {
   @@index([status])
   @@index([paymentDate])
   @@map("sf_payments")
+}
+
+// ---------------------------------------------------------------------------
+// Salesforce CPQ quote mirror — header-level only.
+// LAYER: mirror — populated by sf-sync cron, not product code.
+// Maps to SBQQ__Quote__c. Line items (SBQQ__QuoteLine__c) are a future phase.
+// ---------------------------------------------------------------------------
+
+model SfQuote {
+  id                   String    @id // SBQQ__Quote__c.Id (18-char)
+  accountId            String    @map("account_id")
+  opportunityId        String?   @map("opportunity_id")
+  name                 String?
+  status               String // Draft, Sent, Accepted, Rejected, etc.
+  netAmount            Float?    @map("net_amount")
+  startDate            DateTime? @map("start_date") @db.Date
+  endDate              DateTime? @map("end_date") @db.Date
+  quoteType            String?   @map("quote_type")
+  isPrimary            Boolean   @default(false) @map("is_primary")
+  isOrdered            Boolean   @default(false) @map("is_ordered")
+  stripeSubscriptionId String?   @map("stripe_subscription_id")
+  stripeCustomerId     String?   @map("stripe_customer_id")
+  sfCreatedDate        DateTime? @map("sf_created_date")
+  sfLastModified       DateTime? @map("sf_last_modified")
+  syncedAt             DateTime  @default(now()) @map("synced_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  account SfAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([opportunityId])
+  @@index([status])
+  @@index([stripeSubscriptionId])
+  @@index([sfLastModified])
+  @@map("sf_quotes")
 }
 
 // ---------------------------------------------------------------------------

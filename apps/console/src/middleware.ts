@@ -3,6 +3,10 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 export async function middleware(request: NextRequest) {
+  if (process.env.NODE_ENV === "development" && process.env.OMNI_REQUIRE_AUTH !== "true") {
+    return NextResponse.next();
+  }
+
   const secret = process.env.NEXTAUTH_SECRET;
 
   // Without a secret we cannot verify tokens. Redirect to login rather than

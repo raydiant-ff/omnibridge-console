@@ -1,6 +1,7 @@
 "use server";
 
 import { requireSession } from "@omnibridge/auth";
+import { soql, escapeSoql } from "@omnibridge/salesforce";
 import { flags } from "@/lib/feature-flags";
 
 export interface AccountContact {
@@ -39,7 +40,6 @@ export async function getAccountContacts(sfAccountId: string): Promise<AccountCo
   }
 
   try {
-    const { soql, escapeSoql } = await import("@omnibridge/salesforce");
     const safeId = escapeSoql(sfAccountId);
     
     const [contacts, accounts] = await Promise.all([
