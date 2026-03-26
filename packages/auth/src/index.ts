@@ -80,7 +80,7 @@ function isLocalBrowseMode() {
 async function getLocalBrowseSession() {
   const adminEmail =
     process.env.ADMIN_EMAIL?.trim() ||
-    "francisco.fiedler@displai.ai";
+    "admin@yourcompany.com";
 
   const user = await prisma.user.findUnique({
     where: { email: adminEmail },

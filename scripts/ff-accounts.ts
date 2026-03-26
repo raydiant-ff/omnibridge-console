@@ -46,7 +46,7 @@ async function main() {
     all.push(...result.records);
   }
 
-  process.stderr.write(`Total Active Customer accounts for Francisco Fiedler: ${all.length}\n`);
+  process.stderr.write(`Total Active Customer accounts for the current operator: ${all.length}\n`);
 
   process.stdout.write("Id,Account Name,Status,Owner,ARR,Account Value\n");
   for (const a of all) {

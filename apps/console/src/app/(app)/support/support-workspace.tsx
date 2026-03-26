@@ -48,8 +48,8 @@ type AgentModel = "sonnet" | "opus";
 const fallbackConversations: SupportWorkspaceConversation[] = [
   {
     id: "conv-1024",
-    customer: "Sarah Tran",
-    company: "BrightWave Marketing",
+    customer: "Taylor Reed",
+    company: "Northstar Marketing",
     linkedCustomer: true,
     subject: "SMS opt-in issue after billing retry",
     preview:
@@ -57,7 +57,7 @@ const fallbackConversations: SupportWorkspaceConversation[] = [
     channel: "sms",
     status: "open",
     priority: "urgent",
-    assignee: "Francisco Fiedler",
+    assignee: "Support Agent",
     lastActivity: "2m ago",
     waitingOn: "internal",
     tags: ["billing", "avochato", "escalated"],
@@ -68,7 +68,7 @@ const fallbackConversations: SupportWorkspaceConversation[] = [
     messages: [
       {
         id: "m-1",
-        author: "Sarah Tran",
+        author: "Taylor Reed",
         role: "customer",
         kind: "message",
         sentAt: "9:03 AM",
@@ -78,7 +78,7 @@ const fallbackConversations: SupportWorkspaceConversation[] = [
       },
       {
         id: "m-2",
-        author: "Francisco Fiedler",
+        author: "Support Agent",
         role: "agent",
         kind: "message",
         sentAt: "9:10 AM",
@@ -88,7 +88,7 @@ const fallbackConversations: SupportWorkspaceConversation[] = [
       },
       {
         id: "m-3",
-        author: "Sarah Tran",
+        author: "Taylor Reed",
         role: "customer",
         kind: "message",
         sentAt: "9:18 AM",
@@ -101,8 +101,8 @@ const fallbackConversations: SupportWorkspaceConversation[] = [
   },
   {
     id: "conv-1023",
-    customer: "Jordan Lee",
-    company: "Cascade Commerce",
+    customer: "Morgan Hale",
+    company: "Summit Commerce",
     linkedCustomer: true,
     subject: "Invoice PDF missing Salesforce account owner",
     preview:
@@ -121,7 +121,7 @@ const fallbackConversations: SupportWorkspaceConversation[] = [
     messages: [
       {
         id: "m-4",
-        author: "Jordan Lee",
+        author: "Morgan Hale",
         role: "customer",
         kind: "message",
         sentAt: "8:11 AM",
@@ -144,8 +144,8 @@ const fallbackConversations: SupportWorkspaceConversation[] = [
   },
   {
     id: "conv-1022",
-    customer: "Victor Park",
-    company: "Northwind Labs",
+    customer: "Riley Chen",
+    company: "Pioneer Labs",
     linkedCustomer: true,
     subject: "Live chat from upgrade page",
     preview:
@@ -164,7 +164,7 @@ const fallbackConversations: SupportWorkspaceConversation[] = [
     messages: [
       {
         id: "m-6",
-        author: "Victor Park",
+        author: "Riley Chen",
         role: "customer",
         kind: "message",
         sentAt: "7:49 AM",

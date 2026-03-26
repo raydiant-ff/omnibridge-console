@@ -188,7 +188,7 @@ export function AccountsTable({ myAccounts, allAccounts, isAdmin }: AccountsTabl
           </div>
         ) : (
           filtered.map((a) => {
-            const sfBase = process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://raydiant.lightning.force.com";
+            const sfBase = process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://yourorg.lightning.force.com";
             const sfUrl = `${sfBase}/lightning/r/Account/${a.id}/view`;
             const stripeUrl = a.stripeCustomerId
               ? `https://dashboard.stripe.com/customers/${a.stripeCustomerId}`

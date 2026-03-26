@@ -37,7 +37,7 @@ const MOCK_OPPORTUNITIES: OpportunityRow[] = [
     closeDate: "2026-04-15",
     createdDate: "2026-01-10T08:00:00Z",
     lastModified: "2026-02-18T10:30:00Z",
-    ownerName: "Francisco Fiedler",
+    ownerName: "Alex Morgan",
   },
   {
     id: "006MOCK002",
@@ -63,7 +63,7 @@ const MOCK_OPPORTUNITIES: OpportunityRow[] = [
     closeDate: "2026-06-01",
     createdDate: "2026-02-01T09:30:00Z",
     lastModified: "2026-02-16T09:00:00Z",
-    ownerName: "Francisco Fiedler",
+    ownerName: "Alex Morgan",
   },
 ];
 
@@ -107,7 +107,7 @@ const MOCK_DASHBOARD_OPPORTUNITIES: OpportunityRow[] = [
     closeDate: "2026-01-28",
     createdDate: "2025-11-15T10:00:00Z",
     lastModified: "2026-01-28T16:00:00Z",
-    ownerName: "Francisco Fiedler",
+    ownerName: "Alex Morgan",
   },
   {
     id: "006MOCK005",
@@ -133,7 +133,7 @@ const MOCK_DASHBOARD_OPPORTUNITIES: OpportunityRow[] = [
     closeDate: "2026-02-05",
     createdDate: "2026-01-02T08:00:00Z",
     lastModified: "2026-02-05T11:00:00Z",
-    ownerName: "Francisco Fiedler",
+    ownerName: "Alex Morgan",
   },
   {
     id: "006MOCK007",
@@ -159,7 +159,7 @@ const MOCK_DASHBOARD_OPPORTUNITIES: OpportunityRow[] = [
     closeDate: "2026-05-15",
     createdDate: "2026-02-12T10:00:00Z",
     lastModified: "2026-02-20T09:00:00Z",
-    ownerName: "Francisco Fiedler",
+    ownerName: "Alex Morgan",
   },
 ];
 

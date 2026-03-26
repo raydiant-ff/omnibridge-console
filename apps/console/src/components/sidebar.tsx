@@ -170,8 +170,8 @@ export function Sidebar() {
     setCollapsed(compactMode);
   }, [compactMode]);
 
-  const displayName = session?.user?.name ?? "Francisco Fiedler";
-  const displayEmail = session?.user?.email ?? "francisco.fiedler@displai.ai";
+  const displayName = session?.user?.name ?? "Admin User";
+  const displayEmail = session?.user?.email ?? "admin@yourcompany.com";
 
   const initials = displayName
     .split(" ")

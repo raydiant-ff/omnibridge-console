@@ -151,7 +151,7 @@ export async function getCustomerPanelData(
 
   const sfBase =
     process.env.NEXT_PUBLIC_SF_ORG_URL ??
-    "https://raydiant.lightning.force.com";
+    "https://yourorg.lightning.force.com";
 
   // Fetch SF account first (may contain Stripe Customer ID we don't have yet)
   const sfAccount = sfAccountId

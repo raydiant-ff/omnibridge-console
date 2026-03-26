@@ -172,7 +172,7 @@ function classifyRenewalStatus(sub: SubRow): RenewalStatus {
 
 const EXCLUDED_CSMS = new Set([
   "Blake Reeves",
-  "Franc Nebeolisah",
+  "Alex Morgan",
   "Stephanie Chow",
 ]);
 

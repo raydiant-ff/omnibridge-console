@@ -4,7 +4,7 @@
  *
  * The response contains:
  *   request.from_dashboard: true/false
- *   request.from_dashboard_user: "francisco.fiedler@displai.ai"
+ *   request.from_dashboard_user: "admin@yourcompany.com"
  *
  * This is fire-and-forget — callers should .catch() errors.
  */

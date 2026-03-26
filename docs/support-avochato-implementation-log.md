@@ -255,8 +255,8 @@ Verified that the Avochato credentials are real and can see the live support tra
 
 The first successful bootstrap sync confirmed:
 
-- Avochato credential owner: `francisco.fiedler@displai.ai`
-- canonical account subdomain: `raydiant`
+- Avochato credential owner was verified successfully
+- canonical account subdomain was resolved successfully
 - visible Avochato accounts: `8`
 
 ### 2026-03-25 — Support identity and overflow hardening
@@ -383,7 +383,7 @@ This is the first proof that Omni can mirror real Avochato channel boundaries in
 #### Technical scope
 
 - wired local Avochato credentials into `apps/console/.env.local`
-- added `AVOCHATO_DEFAULT_SUBDOMAIN=raydiant` after the first successful identity check
+- added `AVOCHATO_DEFAULT_SUBDOMAIN` after the first successful identity check
 - fixed `@omnibridge/console` workspace dependency wiring for `@omnibridge/avochato`
 - identified and fixed a Prisma null-composite-key issue in `SupportAgentChannelAccess` sync by replacing `upsert` with a null-safe `findFirst` + `update/create` path
 
@@ -396,7 +396,7 @@ This is the first proof that Omni can mirror real Avochato channel boundaries in
 #### Validation
 
 - first live sync returned:
-  - account subdomain `raydiant`
+  - canonical account subdomain resolved successfully
   - `8` accounts processed
   - `8` endpoints processed
   - `15` users visible

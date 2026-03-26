@@ -122,7 +122,7 @@ const SUB_SELECT = `
 
 const EXCLUDED_CSMS = new Set([
   "Blake Reeves",
-  "Franc Nebeolisah",
+  "Alex Morgan",
   "Stephanie Chow",
 ]);
 
