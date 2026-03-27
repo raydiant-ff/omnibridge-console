@@ -88,7 +88,11 @@ Current hosted behavior:
 
 - internal production is live on `https://omnibridge-console.vercel.app`
 - authenticated app routes correctly protect access by redirecting unauthenticated users to `/login`
-- the old deployment-specific URL previously used for demos should be treated as historical only; new releases should use the stable production alias
+- the old deployment-specific URL previously used for demos should be treated as historical only
+- important deployment-protection caveat:
+  - the stable production alias is currently publicly reachable at the Vercel edge and only then gated by app auth
+  - the fresh deployment-specific URL is protected by Vercel Authentication
+  - until the project is moved to `All Deployments` protection in Vercel, the safe internal test URL is the current protected deployment URL, not the stable alias
 
 #### Technical scope
 
@@ -117,6 +121,13 @@ Recommended next step for Engineering:
 1. keep using the stable project alias for internal testing
 2. move the deploy-fix files into a reviewed checkpoint commit
 3. decide whether to make this project’s production branch track the composite branch temporarily or keep production deploys manual during the evaluation period
+
+Deployment protection note:
+
+- current project protection mode is effectively `Standard Protection`
+- this protects the generated deployment URL but not the stable production alias in the way the team expected
+- to make the stable alias internal-only, Engineering should change the project to `All Deployments` protection in the Vercel dashboard if the account plan supports it
+- if the current personal scope cannot use `All Deployments`, the project should be recreated or transferred to the stronger team scope before wider internal rollout
 
 ### 1. Shell + Design System V1
 
