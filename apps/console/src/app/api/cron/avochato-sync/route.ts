@@ -1,9 +1,22 @@
 import { NextResponse } from "next/server";
-import { prisma, SupportChannel, SupportExternalSystem } from "@omnibridge/db";
+import {
+  Prisma,
+  prisma,
+  SupportChannel,
+  SupportExternalSystem,
+} from "@omnibridge/db";
 import { listAccounts, listUsers, whoAmI } from "@omnibridge/avochato";
 import { writeSyncEvent } from "@/lib/actions/sync-event-log";
 
 export const maxDuration = 300;
+
+function asJsonInput(
+  value: unknown,
+): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return Prisma.JsonNull;
+  return value as Prisma.InputJsonValue;
+}
 
 export async function GET(request: Request) {
   const authHeader = request.headers.get("authorization");
@@ -50,7 +63,7 @@ export async function GET(request: Request) {
             externalAccountId: account.id,
             name: account.name || account.subdomain,
             phone: account.phone,
-            metadataJson: account,
+            metadataJson: asJsonInput(account),
           },
           create: {
             externalSystem: SupportExternalSystem.avochato,
@@ -58,7 +71,7 @@ export async function GET(request: Request) {
             externalSubdomain: account.subdomain,
             name: account.name || account.subdomain,
             phone: account.phone,
-            metadataJson: account,
+            metadataJson: asJsonInput(account),
           },
         });
         accountsProcessed++;
@@ -76,7 +89,7 @@ export async function GET(request: Request) {
               label: account.name || account.subdomain,
               address: account.phone,
               active: true,
-              metadataJson: account,
+              metadataJson: asJsonInput(account),
             },
             create: {
               channelAccountId: supportAccount.id,
@@ -86,7 +99,7 @@ export async function GET(request: Request) {
               label: account.name || account.subdomain,
               address: account.phone,
               active: true,
-              metadataJson: account,
+              metadataJson: asJsonInput(account),
             },
           });
           endpointsProcessed++;

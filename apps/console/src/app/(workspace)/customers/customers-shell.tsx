@@ -6,6 +6,7 @@ import { SidebarIcon, Search, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { StatStrip } from "@/components/omni";
+import type { Stat } from "@/components/omni/stat-strip";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -56,7 +57,7 @@ function MirrorStatus() {
 // ---------------------------------------------------------------------------
 
 function PageIntro({ totals }: { totals: CustomerDirectoryTotals }) {
-  const stats = [
+  const stats: Stat[] = [
     {
       label: "Customers",
       value: totals.totalCustomers.toLocaleString(),

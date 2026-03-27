@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { NextResponse } from "next/server";
 import {
   prisma,
+  Prisma,
   SupportChannel,
   SupportConversationEventType,
   SupportConversationStatus,
@@ -19,6 +20,12 @@ function asRecord(value: unknown): JsonRecord | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as JsonRecord)
     : null;
+}
+
+function asJsonInput(value: unknown): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return Prisma.JsonNull;
+  return value as Prisma.InputJsonValue;
 }
 
 function asString(value: unknown): string | null {
@@ -227,7 +234,7 @@ export async function POST(request: Request) {
         update: {
           name: accountName,
           phone: accountPhone,
-          metadataJson: asRecord(payload.account) ?? payload,
+          metadataJson: asJsonInput(asRecord(payload.account) ?? payload),
         },
         create: {
           externalSystem: SupportExternalSystem.avochato,
@@ -235,7 +242,7 @@ export async function POST(request: Request) {
           externalAccountId: asString(asRecord(payload.account)?.id),
           name: accountName,
           phone: accountPhone,
-          metadataJson: asRecord(payload.account) ?? payload,
+          metadataJson: asJsonInput(asRecord(payload.account) ?? payload),
         },
       })
     : null;
@@ -297,8 +304,8 @@ export async function POST(request: Request) {
             ? sentAt
             : undefined,
         waitingOn: pickWaitingOn(payload.waiting_on),
-        tagsJson: payload.tags ?? rootTicket?.tags ?? undefined,
-        payloadJson: payload,
+        tagsJson: asJsonInput(payload.tags ?? rootTicket?.tags),
+        payloadJson: asJsonInput(payload),
         lastWebhookAt: new Date(),
         lastSyncedAt: new Date(),
       },
@@ -333,8 +340,8 @@ export async function POST(request: Request) {
             ? sentAt
             : null,
         waitingOn: pickWaitingOn(payload.waiting_on),
-        tagsJson: payload.tags ?? rootTicket?.tags ?? null,
-        payloadJson: payload,
+        tagsJson: asJsonInput(payload.tags ?? rootTicket?.tags),
+        payloadJson: asJsonInput(payload),
         lastWebhookAt: new Date(),
         lastSyncedAt: new Date(),
       },
@@ -362,7 +369,7 @@ export async function POST(request: Request) {
         toAddress: asString(rootMessage?.to) ?? asString(payload.to),
         sentAt,
         deliveryState: asString(rootMessage?.status) ?? asString(payload.status),
-        payloadJson: rootMessage ?? payload,
+        payloadJson: asJsonInput(rootMessage ?? payload),
       },
       create: {
         conversationId,
@@ -376,7 +383,7 @@ export async function POST(request: Request) {
         toAddress: asString(rootMessage?.to) ?? asString(payload.to),
         sentAt,
         deliveryState: asString(rootMessage?.status) ?? asString(payload.status),
-        payloadJson: rootMessage ?? payload,
+        payloadJson: asJsonInput(rootMessage ?? payload),
       },
     });
   }
@@ -425,7 +432,7 @@ export async function POST(request: Request) {
           asString(payload.user_id) ??
           asString(rootTicket?.user_id) ??
           asString(rootContact?.user_id),
-        payloadJson: payload,
+        payloadJson: asJsonInput(payload),
       },
     });
   } else {
@@ -434,7 +441,7 @@ export async function POST(request: Request) {
         action: "support.avochato.webhook_unmatched",
         targetType: "avochato_webhook",
         targetId: externalEventId,
-        payloadJson: payload,
+        payloadJson: asJsonInput(payload),
       },
     });
   }

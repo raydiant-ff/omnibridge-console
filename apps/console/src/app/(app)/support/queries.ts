@@ -107,10 +107,26 @@ export async function getSupportWorkspaceData(): Promise<SupportWorkspaceConvers
       },
       events: {
         orderBy: { createdAt: "asc" },
+        include: {
+          actor: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+        },
       },
       messages: {
         orderBy: { sentAt: "asc" },
         take: 100,
+        include: {
+          author: {
+            select: {
+              name: true,
+              email: true,
+            },
+          },
+        },
       },
     },
   });

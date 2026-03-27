@@ -78,6 +78,46 @@ Technical scope:
 
 ## Current Composite Scope
 
+### Internal Vercel Deploy
+
+#### Business scope
+
+The composite branch is now suitable for internal hosted testing instead of relying on slow local-only demos.
+
+Current hosted behavior:
+
+- internal production is live on `https://omnibridge-console.vercel.app`
+- authenticated app routes correctly protect access by redirecting unauthenticated users to `/login`
+- the old deployment-specific URL previously used for demos should be treated as historical only; new releases should use the stable production alias
+
+#### Technical scope
+
+Deployment notes for Engineering:
+
+- Vercel project root directory is `apps/console`
+- the project is using the composite branch code, but the repo is still being worked from `work/composite-v1-integration`
+- Vercel env vars were loaded from local console env and adjusted for hosted auth/base URL behavior
+- production-only build fixes were required in several files before Vercel would build cleanly:
+  - [customers.ts](/Users/franciscofiedler/OmniBridge-v2/apps/console/src/lib/queries/customers.ts)
+  - [support/queries.ts](/Users/franciscofiedler/OmniBridge-v2/apps/console/src/app/(app)/support/queries.ts)
+  - [support/support-workspace.tsx](/Users/franciscofiedler/OmniBridge-v2/apps/console/src/app/(app)/support/support-workspace.tsx)
+  - [avochato webhook route](/Users/franciscofiedler/OmniBridge-v2/apps/console/src/app/api/avochato/webhook/route.ts)
+  - [avochato access sync route](/Users/franciscofiedler/OmniBridge-v2/apps/console/src/app/api/cron/avochato-sync/route.ts)
+  - [avochato conversation sync route](/Users/franciscofiedler/OmniBridge-v2/apps/console/src/app/api/cron/avochato-conversations-sync/route.ts)
+  - [customers-shell.tsx](/Users/franciscofiedler/OmniBridge-v2/apps/console/src/app/(workspace)/customers/customers-shell.tsx)
+  - [stat-strip.tsx](/Users/franciscofiedler/OmniBridge-v2/apps/console/src/components/omni/stat-strip.tsx)
+  - [turbo.json](/Users/franciscofiedler/OmniBridge-v2/turbo.json)
+- deploy-context cleanup was added in:
+  - [.vercelignore](/Users/franciscofiedler/OmniBridge-v2/.vercelignore)
+  - [apps/console/.vercelignore](/Users/franciscofiedler/OmniBridge-v2/apps/console/.vercelignore)
+  - [apps/console/.gitignore](/Users/franciscofiedler/OmniBridge-v2/apps/console/.gitignore)
+
+Recommended next step for Engineering:
+
+1. keep using the stable project alias for internal testing
+2. move the deploy-fix files into a reviewed checkpoint commit
+3. decide whether to make this project’s production branch track the composite branch temporarily or keep production deploys manual during the evaluation period
+
 ### 1. Shell + Design System V1
 
 #### Business scope

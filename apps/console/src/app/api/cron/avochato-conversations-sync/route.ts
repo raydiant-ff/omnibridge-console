@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import {
   prisma,
+  Prisma,
   SupportChannel,
   SupportConversationStatus,
   SupportExternalSystem,
@@ -38,6 +39,12 @@ function normalizePhone(phone: string | null | undefined) {
   return phone ? phone.replace(/\D/g, "") : null;
 }
 
+function asJsonInput(value: unknown): Prisma.InputJsonValue | Prisma.NullableJsonNullValueInput | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return Prisma.JsonNull;
+  return value as Prisma.InputJsonValue;
+}
+
 function pickChannel(origin: string | null | undefined): SupportChannel {
   const raw = String(origin ?? "").toLowerCase();
   if (raw.includes("chat")) return SupportChannel.chat;
@@ -71,6 +78,12 @@ function chunkArray<T>(items: T[], size: number) {
     chunks.push(items.slice(index, index + size));
   }
   return chunks;
+}
+
+function readStringField(value: unknown, key: string) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const field = (value as Record<string, unknown>)[key];
+  return typeof field === "string" ? field : null;
 }
 
 function pickConversationStatus(value: string | null | undefined): SupportConversationStatus {
@@ -143,22 +156,17 @@ function buildEventSummary(
   }
 
   if (rawType.includes("avonote")) {
+    const body = readStringField(event, "body");
     return {
       actorExternalId,
       actorName: actorName ?? "Avochato",
       summary: "Internal note added",
-      detail:
-        typeof (event as { body?: unknown }).body === "string"
-          ? ((event as { body: string }).body ?? null)
-          : null,
+      detail: body,
     };
   }
 
   if (rawType.includes("call")) {
-    const direction =
-      typeof (event as { direction?: unknown }).direction === "string"
-        ? ((event as { direction: string }).direction ?? "out")
-        : "out";
+    const direction = readStringField(event, "direction") ?? "out";
     return {
       actorExternalId,
       actorName: actorName ?? "Avochato",
@@ -196,7 +204,7 @@ async function resolveCustomerLink(messageGroup: AvochatoMessage[]) {
             : [message.to],
         )
         .map(normalizePhone)
-        .filter((value): value is string => Boolean(value) && value.length >= 10),
+        .filter((value): value is string => typeof value === "string" && value.length >= 10),
     ),
   );
 
@@ -420,7 +428,7 @@ export async function GET(request: Request) {
                 lastDirection: latest.direction,
                 currentAssigneeName,
               },
-              payloadJson: latest,
+              payloadJson: asJsonInput(latest),
               lastSyncedAt: new Date(),
             },
             create: {
@@ -458,7 +466,7 @@ export async function GET(request: Request) {
                 lastDirection: latest.direction,
                 currentAssigneeName,
               },
-              payloadJson: latest,
+              payloadJson: asJsonInput(latest),
               lastSyncedAt: new Date(),
             },
             select: { id: true },
@@ -486,7 +494,7 @@ export async function GET(request: Request) {
                 authorUserId: message.sender_id
                   ? omniUserIdByExternalAvoUserId.get(message.sender_id) ?? undefined
                   : undefined,
-                payloadJson: message,
+                payloadJson: asJsonInput(message),
               },
               create: {
                 conversationId: conversation.id,
@@ -502,7 +510,7 @@ export async function GET(request: Request) {
                 authorUserId: message.sender_id
                   ? omniUserIdByExternalAvoUserId.get(message.sender_id) ?? null
                   : null,
-                payloadJson: message,
+                payloadJson: asJsonInput(message),
               },
             });
             messagesProcessed++;
@@ -594,13 +602,13 @@ export async function GET(request: Request) {
                     ? omniUserIdByExternalAvoUserId.get(actorExternalId) ?? undefined
                     : undefined,
                   externalActorId: actorExternalId ?? undefined,
-                  payloadJson: {
+                  payloadJson: asJsonInput({
                     ...event,
                     actorName,
                     currentAssigneeName,
                     summary,
                     detail,
-                  },
+                  }),
                   createdAt: pickEventTimestamp(event),
                 },
                 create: {
@@ -612,13 +620,13 @@ export async function GET(request: Request) {
                     ? omniUserIdByExternalAvoUserId.get(actorExternalId) ?? null
                     : null,
                   externalActorId: actorExternalId ?? null,
-                  payloadJson: {
+                  payloadJson: asJsonInput({
                     ...event,
                     actorName,
                     currentAssigneeName,
                     summary,
                     detail,
-                  },
+                  }),
                   createdAt: pickEventTimestamp(event),
                 },
               });

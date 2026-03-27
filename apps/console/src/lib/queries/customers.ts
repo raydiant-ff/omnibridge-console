@@ -9,6 +9,7 @@ import {
   getAccountsByCsm,
   getAllAccounts,
   getAccountDetail,
+  soql,
 } from "@omnibridge/salesforce";
 import { getStripeClient } from "@omnibridge/stripe";
 import { flags } from "@/lib/feature-flags";

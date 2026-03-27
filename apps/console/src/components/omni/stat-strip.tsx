@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 
-interface Stat {
+export interface Stat {
   label: string;
   value: string;
   variant?: "default" | "danger" | "positive";

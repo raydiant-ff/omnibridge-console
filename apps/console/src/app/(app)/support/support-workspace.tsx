@@ -564,8 +564,8 @@ function SupportModeNav({
   onChannelChange,
   supportModes,
 }: {
-  channel: SupportChannel | "all";
-  onChannelChange: (value: SupportChannel | "all") => void;
+  channel: SupportChannel;
+  onChannelChange: (value: SupportChannel) => void;
   supportModes: Array<{ id: SupportChannel; label: string; count: number; icon: typeof Mail }>;
 }) {
   return (
@@ -747,13 +747,14 @@ function InlineSupportMcpPanel({ conversation }: { conversation: SupportWorkspac
       if (!response.ok || !payload.reply) {
         throw new Error(payload.error || "The AI Agent could not complete that request.");
       }
+      const reply = payload.reply;
 
       setMessages((current) => [
         ...current,
         {
           id: `assistant-${Date.now()}`,
           role: "assistant",
-          content: payload.reply,
+          content: reply,
           model,
         },
       ]);

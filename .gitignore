@@ -64,3 +64,4 @@ apps/logos/
 apps/console/.next_build_retry_*/
 apps/console/.next_stale_*/
 docs/shadcn-version/shadcn_blocks_api_key
+.vercel
