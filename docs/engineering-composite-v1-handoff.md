@@ -131,6 +131,42 @@ Deployment protection note:
   - the Vercel edge behavior for the mapped domain
   - the app-level `/login` redirect behavior
 
+### Internal Authentication
+
+#### Business scope
+
+Omni now supports internal Slack SSO for faster employee onboarding while preserving local Omni authorization.
+
+Key behavior:
+
+- users can start sign-in with Slack from the login page
+- Slack sign-in is **not** open signup
+- a user is only allowed in if their Slack email already matches an existing Omni user row
+- the existing email/password flow remains available as an admin fallback during rollout
+
+#### Technical scope
+
+Primary files:
+
+- [packages/auth/src/index.ts](/Users/franciscofiedler/OmniBridge-v2/packages/auth/src/index.ts)
+- [login/page.tsx](/Users/franciscofiedler/OmniBridge-v2/apps/console/src/app/login/page.tsx)
+
+Implementation details:
+
+- Auth.js / NextAuth now includes the built-in Slack provider when:
+  - `SLACK_CLIENT_ID`
+  - `SLACK_CLIENT_SECRET`
+  are present
+- the Slack button on the login page is controlled by:
+  - `NEXT_PUBLIC_SLACK_AUTH_ENABLED=true`
+- the `signIn` callback blocks Slack users who do not already exist in Omni
+- the JWT/session callbacks resolve the real Omni `user.id` and `role` from the local database by email
+- Omni authorization remains local even when authentication is delegated to Slack
+
+Operational requirement:
+
+- any user who should access Omni via Slack must already have a `User` row in the Omni database with the correct email and role
+
 ### 1. Shell + Design System V1
 
 #### Business scope

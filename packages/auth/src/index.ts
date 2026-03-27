@@ -1,14 +1,43 @@
 import type { NextAuthOptions } from "next-auth";
 import { getServerSession as nextAuthGetServerSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
+import SlackProvider from "next-auth/providers/slack";
 import { compareSync } from "bcryptjs";
 import { prisma, type Role } from "@omnibridge/db";
 
 export type { Role } from "@omnibridge/db";
 
+type AuthorizedUser = {
+  id: string;
+  email: string;
+  name: string | null;
+  role: Role;
+};
+
+async function getAuthorizedUserByEmail(email: string): Promise<AuthorizedUser | null> {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (!normalizedEmail) {
+    return null;
+  }
+
+  return prisma.user.findUnique({
+    where: { email: normalizedEmail },
+    select: { id: true, email: true, name: true, role: true },
+  });
+}
+
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt" },
   providers: [
+    ...(process.env.SLACK_CLIENT_ID && process.env.SLACK_CLIENT_SECRET
+      ? [
+          SlackProvider({
+            clientId: process.env.SLACK_CLIENT_ID,
+            clientSecret: process.env.SLACK_CLIENT_SECRET,
+          }),
+        ]
+      : []),
     CredentialsProvider({
       name: "Credentials",
       credentials: {
@@ -22,7 +51,7 @@ export const authOptions: NextAuthOptions = {
 
         try {
           const user = await prisma.user.findUnique({
-            where: { email: credentials.email },
+            where: { email: credentials.email.trim().toLowerCase() },
             select: { id: true, email: true, name: true, role: true, passwordHash: true },
           });
 
@@ -45,11 +74,50 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
+    async signIn({ user, account, profile }) {
+      if (account?.provider !== "slack") {
+        return true;
+      }
+
+      const email =
+        user.email ??
+        (typeof profile?.email === "string" ? profile.email : null);
+
+      if (!email) {
+        return false;
+      }
+
+      const authorizedUser = await getAuthorizedUserByEmail(email);
+      return Boolean(authorizedUser);
+    },
     async jwt({ token, user }) {
       if (user) {
-        token.id = user.id;
-        token.role = (user as unknown as { role: Role }).role;
+        const userEmail = typeof user.email === "string" ? user.email : null;
+        const authorizedUser =
+          userEmail ? await getAuthorizedUserByEmail(userEmail) : null;
+
+        if (authorizedUser) {
+          token.id = authorizedUser.id;
+          token.role = authorizedUser.role;
+          token.name = authorizedUser.name ?? user.name ?? token.name;
+          token.email = authorizedUser.email;
+        } else {
+          token.id = user.id;
+          const directRole = (user as unknown as { role?: Role }).role;
+          if (directRole) {
+            token.role = directRole;
+          }
+        }
+      } else if (typeof token.email === "string" && (!token.id || !token.role)) {
+        const authorizedUser = await getAuthorizedUserByEmail(token.email);
+        if (authorizedUser) {
+          token.id = authorizedUser.id;
+          token.role = authorizedUser.role;
+          token.name = authorizedUser.name ?? token.name;
+          token.email = authorizedUser.email;
+        }
       }
+
       return token;
     },
     async session({ session, token }) {

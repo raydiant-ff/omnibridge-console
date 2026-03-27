@@ -8,12 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 function LoginForm() {
+  const slackEnabled = process.env.NEXT_PUBLIC_SLACK_AUTH_ENABLED === "true";
   const searchParams = useSearchParams();
   const router = useRouter();
   const error = searchParams.get("error");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [slackLoading, setSlackLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -38,10 +40,21 @@ function LoginForm() {
     router.refresh();
   }
 
+  async function handleSlackSignIn() {
+    setSlackLoading(true);
+    setFormError(null);
+
+    await signIn("slack", {
+      callbackUrl: "/opportunities",
+    });
+  }
+
   const displayError =
     formError ??
     (error === "CredentialsSignin"
       ? "Invalid email or password."
+      : error === "AccessDenied"
+        ? "Your Slack account is not provisioned for Omni yet."
       : error
         ? "Something went wrong. Please try again."
         : null);
@@ -64,6 +77,27 @@ function LoginForm() {
             {displayError}
           </div>
         )}
+
+        {slackEnabled ? (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              size="lg"
+              disabled={slackLoading || loading}
+              onClick={handleSlackSignIn}
+            >
+              {slackLoading ? "Redirecting to Slack…" : "Continue with Slack"}
+            </Button>
+
+            <div className="flex items-center gap-3 text-xs uppercase tracking-[0.18em] text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />
+              <span>Password login</span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+          </>
+        ) : null}
 
         <div className="flex flex-col gap-2">
           <Label htmlFor="email">Email</Label>
