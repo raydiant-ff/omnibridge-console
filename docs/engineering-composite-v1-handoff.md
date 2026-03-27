@@ -86,21 +86,22 @@ The composite branch is now suitable for internal hosted testing instead of rely
 
 Current hosted behavior:
 
-- internal production is live on `https://omnibridge-console.vercel.app`
-- authenticated app routes correctly protect access by redirecting unauthenticated users to `/login`
-- the old deployment-specific URL previously used for demos should be treated as historical only
-- important deployment-protection caveat:
-  - the stable production alias is currently publicly reachable at the Vercel edge and only then gated by app auth
-  - the fresh deployment-specific URL is protected by Vercel Authentication
-  - until the project is moved to `All Deployments` protection in Vercel, the safe internal test URL is the current protected deployment URL, not the stable alias
+- internal pre-production is live on `https://displai-omni.vercel.app`
+- that domain is mapped to the Vercel `Preview` environment
+- the preview environment is attached to branch `work/composite-v1-integration`
+- authenticated app routes still redirect unauthenticated users to `/login`
+- this is the correct internal working URL for product review while the composite build is still being stabilized
 
 #### Technical scope
 
 Deployment notes for Engineering:
 
 - Vercel project root directory is `apps/console`
-- the project is using the composite branch code, but the repo is still being worked from `work/composite-v1-integration`
-- Vercel env vars were loaded from local console env and adjusted for hosted auth/base URL behavior
+- the project is using the composite branch code and the repo is still being worked from `work/composite-v1-integration`
+- `displai-omni.vercel.app` is intentionally a `Preview`-scoped domain rather than the production alias
+- Vercel preview env vars were adjusted for hosted auth/base URL behavior:
+  - `NEXTAUTH_URL=https://displai-omni.vercel.app`
+  - `NEXT_PUBLIC_BASE_URL=https://displai-omni.vercel.app`
 - production-only build fixes were required in several files before Vercel would build cleanly:
   - [customers.ts](/Users/franciscofiedler/OmniBridge-v2/apps/console/src/lib/queries/customers.ts)
   - [support/queries.ts](/Users/franciscofiedler/OmniBridge-v2/apps/console/src/app/(app)/support/queries.ts)
@@ -118,16 +119,17 @@ Deployment notes for Engineering:
 
 Recommended next step for Engineering:
 
-1. keep using the stable project alias for internal testing
+1. keep using `https://displai-omni.vercel.app` for internal testing
 2. move the deploy-fix files into a reviewed checkpoint commit
-3. decide whether to make this project’s production branch track the composite branch temporarily or keep production deploys manual during the evaluation period
+3. decide later whether to promote this branch to production or keep production deploys manual during the evaluation period
 
 Deployment protection note:
 
-- current project protection mode is effectively `Standard Protection`
-- this protects the generated deployment URL but not the stable production alias in the way the team expected
-- to make the stable alias internal-only, Engineering should change the project to `All Deployments` protection in the Vercel dashboard if the account plan supports it
-- if the current personal scope cannot use `All Deployments`, the project should be recreated or transferred to the stronger team scope before wider internal rollout
+- `displai-omni.vercel.app` is intentionally being used as a protected pre-production domain
+- production should remain unpublished or untrusted until the team is comfortable promoting the composite branch behavior
+- if the project protection model changes again, Engineering should verify both:
+  - the Vercel edge behavior for the mapped domain
+  - the app-level `/login` redirect behavior
 
 ### 1. Shell + Design System V1
 
