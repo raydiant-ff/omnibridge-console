@@ -45,7 +45,7 @@ const CSV_PATH = resolve(
   __dirname,
   "../Revenue & ARR Data Scrub (Feb-26) - Feb Subscription Churn.csv",
 );
-const OUTPUT_PATH = resolve(__dirname, "../feb-2026-churn-reconciled.csv");
+const OUTPUT_PATH = resolve(__dirname, "../artifacts/local/spreadsheets/feb-2026-churn-reconciled.csv");
 
 // ---------------------------------------------------------------------------
 // CSV parsing (no external deps)

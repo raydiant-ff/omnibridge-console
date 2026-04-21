@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-OUT_FILE=".cursor/.last-test-failure.txt"
+OUT_FILE=".ai/.last-test-failure.txt"
 : > "$OUT_FILE"
 
 echo "Capturing focused test output..."

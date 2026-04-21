@@ -39,6 +39,24 @@ npx tsx scripts/<name>.ts           # Run one-off scripts (use apps/console/.env
 
 No test runner exists. Validation ladder: `pnpm lint` (fast) → `pnpm build` (type-checks) → manual verification in dev server.
 
+## Recommended tool stack
+
+Default team stance for this repo:
+
+- local Codex-driven implementation is the primary coding lane
+- `shadcn` remains the UI primitive system
+- Figma remains the design source and code-linking layer
+- Cursor is optional as an editor
+- Bugbot is optional as an advisory first-pass reviewer
+- Cursor cloud/background agents are not a default Omni workflow
+
+Why:
+
+- Omni's highest-risk work depends on local context, source-of-truth discipline, and integration safety
+- billing, webhook, auth, and cross-system changes should be handled in the real repo, not delegated by default to remote agents
+
+For the fuller operating model, see `docs/ai/operating-plan.md` and `docs/ai/recommended-tool-stack.md`.
+
 ## Architecture patterns
 
 ### Server actions (`apps/console/src/lib/actions/`)
@@ -88,6 +106,14 @@ NextAuth credentials provider only (email + bcrypt password, JWT strategy). Midd
 - **`escapeSoql()`** from `@omnibridge/salesforce` must be used for any user-provided values in SOQL queries.
 - **Quote acceptance** logic must stay consistent with downstream billing creation (subscription/schedule/invoice).
 - **Prisma client output** is at `packages/db/generated/client` (custom output path for Vercel compatibility). The console build step runs `prisma generate` before `next build`.
+
+## Merge hygiene rules
+
+- **Top-level barrels must be truthful.** Do not export runtime symbols or types from shared barrels unless they already have a non-local consumer, or the first real consumer lands in the same PR.
+- **Schema and migrations move together.** If `packages/db/prisma/schema.prisma` changes in a way that requires a migration, stage the matching migration in the same branch or revert the schema change before merge.
+- **UI actions must tell the truth.** If a control implies persistence or an external side effect, it must be fully wired or explicitly disabled with clear copy. Do not ship active-looking placeholder actions.
+- **Governance files are not cleanup noise.** Changes under `.ai/rules/`, `.ai/agents/`, and `.ai/commands/` should be reviewed as team workflow policy, not lumped in with temporary artifacts.
+- **Perf-only cleanups are polish by default.** Treat changes like independent query parallelization as merge-polish unless they sit on a proven hot path with user-visible cost.
 
 ## Environment variables
 

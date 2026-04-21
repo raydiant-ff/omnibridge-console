@@ -6,7 +6,7 @@ set -euo pipefail
 
 cat > /dev/null  # consume stdin
 
-LOG_FILE=".cursor/.last-edit-status.txt"
+LOG_FILE=".ai/.last-edit-status.txt"
 
 {
   echo "=== Omni post-edit repo snapshot ($(date '+%H:%M:%S')) ==="

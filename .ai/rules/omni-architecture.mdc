@@ -1,0 +1,165 @@
+# Omni Architecture Rule
+
+## Purpose
+This codebase powers Omni’s operational work surfaces.
+
+Omni is built on the **local Omni dataset**, not Atlas. Atlas may be used later for comparison or alignment, but it is **not** the current source of operational truth for the product.
+
+The goal of this repo is to provide:
+- a stable local operational data model
+- canonical shared contracts
+- focused work surfaces on top of those contracts
+
+For planning and high-risk changes, prefer routing through the `omni-architect` lane.
+For pre-merge risk review on sensitive diffs, use `omni-reviewer` or `.ai/commands/review-check.md`.
+
+## Core principles
+
+### 1. Local Omni dataset is the source of truth
+Use the local Omni database and local mirrored/source tables as inputs.
+
+Do not design new route logic around Atlas.
+Do not block route work on Atlas.
+Do not assume Atlas has cleaner or more complete truth.
+
+### 2. Three-layer architecture
+Every feature should respect these layers:
+
+#### Mirror/raw layer
+Source-oriented tables and accessors:
+- `sf_*`
+- `stripe_*`
+- sync metadata and related helpers
+
+These are inputs, not product truth.
+
+#### Canonical Omni layer
+Shared Omni contracts and builders:
+- `apps/console/src/lib/omni/contracts/*`
+- `apps/console/src/lib/omni/builders/*`
+- `apps/console/src/lib/omni/repo/*`
+
+This is where operational truth is composed.
+
+#### Surface layer
+Routes, actions, and UI components.
+Routes should consume canonical contracts, not raw mirror tables.
+
+### 3. Current canonical account key
+Use `customer_index.id` as the current canonical `omniAccountId`.
+
+This is the operational account key for v1 surfaces.
+
+Do not invent a broader enterprise hierarchy unless the task explicitly requires it.
+
+### 4. Canonical contracts come before route logic
+If a route needs business truth, define or extend a canonical Omni contract first.
+
+Do not let routes independently compute:
+- account identity
+- subscription truth
+- ARR/MRR normalization
+- snapshot logic
+- coverage logic
+- freshness/confidence semantics
+- SF correlation summaries
+
+### 5. Money rules
+Canonical Omni contracts store money in **cents**.
+
+Routes/components must not invent their own money semantics.
+
+Any cents → dollars translation for legacy/UI shapes belongs at the adapter boundary only.
+
+### 6. Freshness and confidence
+Freshness and confidence belong in the canonical layer.
+
+Do not improvise freshness or confidence behavior in route components.
+
+### 7. Migration discipline
+Never combine all of these in one pass:
+- data-source migration
+- business-logic reinterpretation
+- UI redesign
+- route expansion
+
+Preferred order:
+1. canonical contract
+2. builder/repo implementation
+3. route adoption
+4. parity validation
+5. visual refinement
+
+### 7a. Barrel truthfulness
+Top-level barrels should expose only real public surface.
+
+Do not re-export runtime symbols or types from shared `index.ts` files unless they already have a non-local consumer, or the first consumer lands in the same PR.
+
+### 7b. Schema/migration pairing
+If a Prisma schema edit requires a migration, keep the matching migration file in the same branch.
+
+Do not leave `schema.prisma` ahead of migrations.
+
+### 8. Table-first work surfaces
+Omni work surfaces are generally table-first operational views.
+
+Do not default to dashboard-first or card-heavy layouts for operational routes.
+
+The table is the primary scan surface.
+Detail panels are secondary/contextual.
+
+## Current canonical contracts
+These contracts are the current foundation and should be reused:
+
+- `omniAccountSpine`
+- `omniSubscriptionFacts`
+- `omniRenewalCandidates`
+- `omniScrubMonthlyAccounts`
+- `omniScrubAccountDetail`
+- `omniDataQualityIssues`
+
+Before creating a new route-specific data shape, check whether one of these should be reused or extended.
+
+## Current route rules
+
+### Renewals
+- consume canonical renewal candidates
+- maintain candidate-level KPI math
+- maintain account-grouped parent rows
+- maintain detail as candidate/contract-level
+- do not redesign while changing data source
+
+### Scrub
+- consume canonical monthly account rows and canonical detail payload
+- table stays account/month-grain
+- detail stays prepared payload
+- do not recompute snapshot/classification in route code
+- do not redesign while changing data source
+
+## What to avoid
+- direct raw-table joins in route files
+- route-local commercial truth
+- mixed money units in the same flow
+- vague param names like `customerId` when the true grain is `omniAccountId`
+- introducing new hierarchy assumptions without explicit approval
+- using old query files as type-definition hosts for migrated routes
+
+## Required behavior for implementation tasks
+For each meaningful task, identify:
+1. route or surface
+2. grain
+3. canonical contract used
+4. freshness semantics
+5. confidence semantics
+6. adapter boundary needs
+7. non-goals
+
+## Validation requirements
+Whenever changing builders, repo, or adopted routes, run:
+- `npx tsc --noEmit`
+- `pnpm lint`
+- `pnpm build`
+
+When parity matters, preserve and use comparison scripts.---
+alwaysApply: true
+---
