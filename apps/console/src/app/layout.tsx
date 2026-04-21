@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
+import Script from "next/script";
 import { getClientSessionSeed } from "@omnibridge/auth";
 import { Providers } from "@/components/providers";
 import "./globals.css";
@@ -20,6 +21,9 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className={`${GeistSans.variable} ${GeistMono.variable} font-sans antialiased`}>
+        {process.env.NODE_ENV === "development" ? (
+          <Script src="https://mcp.figma.com/mcp/html-to-design/capture.js" strategy="afterInteractive" />
+        ) : null}
         <Providers session={session}>{children}</Providers>
       </body>
     </html>

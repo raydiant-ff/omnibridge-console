@@ -24,6 +24,7 @@ export interface OmniSubscriptionFacts {
   cancelAt: string | null; // ISO date
   canceledAt: string | null; // ISO date
   cancelAtPeriodEnd: boolean;
+  hasSchedule: boolean;
 
   // --- Line items ---
   itemCount: number;
@@ -35,6 +36,13 @@ export interface OmniSubscriptionFacts {
   // --- SF correlation ---
   sfContractId: string | null;
   sfCorrelationStatus: "matched" | "partial" | "no_contract";
+
+  // --- SF policy (mirror; null when no linked contract) ---
+  sfContractStatus: string | null;
+  sfContractEndDate: string | null; // ISO date
+  sfEvergreen: boolean | null;
+  sfDoNotRenew: boolean | null;
+  sfRenewalTerm: number | null; // months
 
   // --- Invoice coverage ---
   hasAnyPaidInvoice: boolean;

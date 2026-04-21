@@ -45,14 +45,22 @@ export async function buildOmniSubscriptionFacts(opts: {
   });
   const ciMap = new Map(ciRows.map((r) => [r.stripeCustomerId, r.id]));
 
-  // Batch fetch linked SF contracts
+  // Batch fetch linked SF contracts (policy fields only — no raw blob)
   const subIds = subs.map((s) => s.id);
   const sfContracts = await prisma.sfContract.findMany({
     where: { stripeSubscriptionId: { in: subIds } },
-    select: { id: true, stripeSubscriptionId: true },
+    select: {
+      id: true,
+      stripeSubscriptionId: true,
+      status: true,
+      endDate: true,
+      evergreen: true,
+      doNotRenew: true,
+      renewalTerm: true,
+    },
   });
   const sfContractMap = new Map(
-    sfContracts.map((c) => [c.stripeSubscriptionId!, c.id]),
+    sfContracts.map((c) => [c.stripeSubscriptionId!, c]),
   );
 
   // Batch fetch last paid invoice per subscription
@@ -84,7 +92,8 @@ export async function buildOmniSubscriptionFacts(opts: {
 
   return subs.map((sub) => {
     const omniAccountId = ciMap.get(sub.customerId) ?? sub.customerId;
-    const sfContractId = sfContractMap.get(sub.id) ?? null;
+    const sfContract = sfContractMap.get(sub.id) ?? null;
+    const sfContractId = sfContract?.id ?? null;
 
     // MRR from licensed items
     const licensedItems = sub.items.filter((i) => i.usageType === "licensed");
@@ -133,11 +142,17 @@ export async function buildOmniSubscriptionFacts(opts: {
       cancelAt: sub.cancelAt?.toISOString() ?? null,
       canceledAt: sub.canceledAt?.toISOString() ?? null,
       cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
+      hasSchedule: sub.hasSchedule,
       itemCount: sub.items.length,
       mrrCents,
       arrCents: mrrCents * 12,
       sfContractId,
       sfCorrelationStatus,
+      sfContractStatus: sfContract?.status ?? null,
+      sfContractEndDate: sfContract?.endDate?.toISOString().slice(0, 10) ?? null,
+      sfEvergreen: sfContract?.evergreen ?? null,
+      sfDoNotRenew: sfContract?.doNotRenew ?? null,
+      sfRenewalTerm: sfContract?.renewalTerm ?? null,
       hasAnyPaidInvoice: lastInvoice != null,
       lastPaidInvoiceDate: lastInvoice?.paid_at?.toISOString().slice(0, 10) ?? null,
       lastPaidCoverageEnd: lastInvoice?.period_end?.toISOString().slice(0, 10) ?? null,

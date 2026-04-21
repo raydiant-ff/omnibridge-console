@@ -2,9 +2,10 @@
  * Omni canonical data layer — top-level barrel.
  *
  * Architecture:
- *   contracts/  — pure TypeScript interfaces (the "what")
- *   builders/   — query + transform logic (the "how")
- *   repo/       — auth-gated public API (the "who can")
+ *   contracts/   — pure TypeScript interfaces (the "what")
+ *   builders/    — query + transform logic (the "how")
+ *   repo/        — auth-gated public API (the "who can")
+ *   classifiers/ — pure functions over contracts (no I/O)
  *
  * Routes should import from `@/lib/omni/repo` for data access.
  * Types should be imported from `@/lib/omni/contracts`.

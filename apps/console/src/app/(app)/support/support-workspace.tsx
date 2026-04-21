@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   BrainCircuit,
   ChevronRight,
@@ -25,14 +25,22 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { WorkspaceBody, WorkspaceContainer, WorkspaceHeader } from "@/components/shell/workspace";
 import { PageHeader } from "@/components/workspace/page-header";
+import { getSupportConversationDetail } from "@/lib/support/detail";
 import { cn } from "@/lib/utils";
 import type {
   SupportChannel,
   SupportPriority,
   SupportStatus,
-  SupportWorkspaceConversation,
+  SupportWorkspaceConversationDetail,
+  SupportWorkspaceConversationSummary,
   SupportWorkspaceTimelineItem,
 } from "./types";
 
@@ -44,154 +52,6 @@ type AgentChatMessage = {
 };
 
 type AgentModel = "sonnet" | "opus";
-
-const fallbackConversations: SupportWorkspaceConversation[] = [
-  {
-    id: "conv-1024",
-    customer: "Taylor Reed",
-    company: "Northstar Marketing",
-    linkedCustomer: true,
-    subject: "SMS opt-in issue after billing retry",
-    preview:
-      "Customers can reply STOP, but the number is still receiving retries from the billing flow.",
-    channel: "sms",
-    status: "open",
-    priority: "urgent",
-    assignee: "Support Agent",
-    lastActivity: "2m ago",
-    waitingOn: "internal",
-    tags: ["billing", "avochato", "escalated"],
-    mrr: "$2.1k",
-    billing: "2 invoices past due",
-    renewal: "Apr 14",
-    csm: "Ali Aziz",
-    messages: [
-      {
-        id: "m-1",
-        author: "Taylor Reed",
-        role: "customer",
-        kind: "message",
-        sentAt: "9:03 AM",
-        sentAtIso: "2026-03-25T09:03:00.000Z",
-        body:
-          "Our customer replied STOP to the reminder thread, but Avochato is still sending the retry nudges from billing. Can someone help today?",
-      },
-      {
-        id: "m-2",
-        author: "Support Agent",
-        role: "agent",
-        kind: "message",
-        sentAt: "9:10 AM",
-        sentAtIso: "2026-03-25T09:10:00.000Z",
-        body:
-          "Thanks, we’re tracing whether the retry event is coming from Stripe or from our sync state. I’m looping in engineering and will update this thread shortly.",
-      },
-      {
-        id: "m-3",
-        author: "Taylor Reed",
-        role: "customer",
-        kind: "message",
-        sentAt: "9:18 AM",
-        sentAtIso: "2026-03-25T09:18:00.000Z",
-        body:
-          "Appreciate it. The team is nervous because these customers are already sensitive about collections.",
-      },
-    ],
-    timeline: [],
-  },
-  {
-    id: "conv-1023",
-    customer: "Morgan Hale",
-    company: "Summit Commerce",
-    linkedCustomer: true,
-    subject: "Invoice PDF missing Salesforce account owner",
-    preview:
-      "The invoice PDF no longer includes the account owner name after the last quote sync.",
-    channel: "email",
-    status: "pending_customer",
-    priority: "high",
-    assignee: "Annette Broussard",
-    lastActivity: "34m ago",
-    waitingOn: "customer",
-    tags: ["invoice", "salesforce"],
-    mrr: "$980",
-    billing: "Open invoice $4.8k",
-    renewal: "Apr 02",
-    csm: "Annette Broussard",
-    messages: [
-      {
-        id: "m-4",
-        author: "Morgan Hale",
-        role: "customer",
-        kind: "message",
-        sentAt: "8:11 AM",
-        sentAtIso: "2026-03-25T08:11:00.000Z",
-        body:
-          "Our finance team noticed the account owner field disappeared from the invoice PDF. Was that removed intentionally?",
-      },
-      {
-        id: "m-5",
-        author: "Annette Broussard",
-        role: "agent",
-        kind: "message",
-        sentAt: "8:37 AM",
-        sentAtIso: "2026-03-25T08:37:00.000Z",
-        body:
-          "We’re checking the quote and invoice mapping now. Could you send one affected invoice number so we can verify the payload?",
-      },
-    ],
-    timeline: [],
-  },
-  {
-    id: "conv-1022",
-    customer: "Riley Chen",
-    company: "Pioneer Labs",
-    linkedCustomer: true,
-    subject: "Live chat from upgrade page",
-    preview:
-      "Customer wants to know why the contract and subscription dates do not match after amendment.",
-    channel: "chat",
-    status: "pending_internal",
-    priority: "normal",
-    assignee: "Blake Reeves",
-    lastActivity: "1h ago",
-    waitingOn: "internal",
-    tags: ["contract", "subscription"],
-    mrr: "$640",
-    billing: "Healthy",
-    renewal: "Mar 31",
-    csm: "Blake Reeves",
-    messages: [
-      {
-        id: "m-6",
-        author: "Riley Chen",
-        role: "customer",
-        kind: "message",
-        sentAt: "7:49 AM",
-        sentAtIso: "2026-03-25T07:49:00.000Z",
-        body:
-          "Hey team, our amendment was countersigned but the subscription says one thing and the contract says another. Which one is supposed to govern?",
-      },
-      {
-        id: "m-7",
-        author: "Blake Reeves",
-        role: "agent",
-        kind: "message",
-        sentAt: "8:02 AM",
-        sentAtIso: "2026-03-25T08:02:00.000Z",
-        body:
-          "I’m checking the contract mirror and Stripe subscription timeline. I’ll confirm which date is canonical before you send anything to your customer.",
-      },
-    ],
-    timeline: [],
-  },
-];
-
-for (const conversation of fallbackConversations) {
-  if (conversation.timeline.length === 0) {
-    conversation.timeline = [...conversation.messages];
-  }
-}
 
 function channelLabel(channel: SupportChannel) {
   return channel === "sms" ? "SMS" : channel === "email" ? "Email" : "Chat";
@@ -217,13 +77,13 @@ function priorityVariant(priority: SupportPriority): "secondary" | "warning" | "
 
 export function SupportWorkspace({
   initialConversations,
+  initialDetail,
 }: {
-  initialConversations?: SupportWorkspaceConversation[];
+  initialConversations: SupportWorkspaceConversationSummary[];
+  initialDetail: SupportWorkspaceConversationDetail | null;
 }) {
-  const sourceConversations =
-    initialConversations && initialConversations.length > 0
-      ? initialConversations
-      : fallbackConversations;
+  const sourceConversations = initialConversations;
+  const hasConversations = sourceConversations.length > 0;
 
   const supportModes: Array<{ id: SupportChannel; label: string; count: number; icon: typeof Mail }> =
     useMemo(
@@ -249,13 +109,47 @@ export function SupportWorkspace({
       ],
       [sourceConversations],
     );
+  const workspaceStats = useMemo(
+    () => [
+      {
+        label: "open",
+        value: String(sourceConversations.filter((conversation) => conversation.status === "open").length),
+      },
+      {
+        label: "urgent",
+        value: String(
+          sourceConversations.filter((conversation) => conversation.priority === "urgent").length,
+        ),
+      },
+      {
+        label: "unassigned",
+        value: String(
+          sourceConversations.filter((conversation) => conversation.assignee === "Unassigned").length,
+        ),
+      },
+    ],
+    [sourceConversations],
+  );
 
-  const [selectedId, setSelectedId] = useState(sourceConversations[0]?.id ?? "");
+  const [selectedId, setSelectedId] = useState(
+    sourceConversations.find((conversation) => conversation.channel === "sms")?.id ??
+      sourceConversations[0]?.id ??
+      "",
+  );
+  const [selectedDetail, setSelectedDetail] = useState(initialDetail);
+  const [detailError, setDetailError] = useState<string | null>(null);
+  const [isDetailPending, startDetailTransition] = useTransition();
   const [query, setQuery] = useState("");
   const [channel, setChannel] = useState<SupportChannel>("sms");
   const [visibleTimelineCount, setVisibleTimelineCount] = useState(24);
   const timelineScrollRef = useRef<HTMLDivElement | null>(null);
   const pendingOlderLoadRef = useRef<{ previousHeight: number } | null>(null);
+  const detailCacheRef = useRef(
+    new Map<string, SupportWorkspaceConversationDetail>(
+      initialDetail ? [[initialDetail.id, initialDetail]] : [],
+    ),
+  );
+  const pendingDetailIdRef = useRef<string | null>(null);
 
   const filteredConversations = useMemo(() => {
     return sourceConversations.filter((conversation) => {
@@ -272,12 +166,21 @@ export function SupportWorkspace({
     filteredConversations.find((conversation) => conversation.id === selectedId) ??
     filteredConversations[0] ??
     sourceConversations[0];
+  const selectedConversationId = selectedConversation?.id ?? null;
+  const selectedDetailForConversation =
+    selectedConversationId === selectedDetail?.id
+      ? selectedDetail
+      : selectedConversationId
+        ? detailCacheRef.current.get(selectedConversationId) ?? null
+        : null;
 
   useEffect(() => {
+    if (!selectedConversationId) return;
     setVisibleTimelineCount(24);
-  }, [selectedConversation.id]);
+  }, [selectedConversationId]);
 
   useEffect(() => {
+    if (!selectedConversationId || !selectedDetailForConversation) return;
     const container = timelineScrollRef.current;
     if (!container) return;
 
@@ -290,9 +193,96 @@ export function SupportWorkspace({
     }
 
     container.scrollTop = container.scrollHeight;
-  }, [selectedConversation.id, visibleTimelineCount]);
+  }, [selectedConversationId, selectedDetailForConversation, visibleTimelineCount]);
 
-  const visibleTimeline = selectedConversation.timeline.slice(-visibleTimelineCount);
+  useEffect(() => {
+    if (!selectedConversation) {
+      setSelectedDetail(null);
+      setDetailError(null);
+      pendingDetailIdRef.current = null;
+      return;
+    }
+
+    const cachedDetail = detailCacheRef.current.get(selectedConversation.id);
+    if (cachedDetail) {
+      setSelectedDetail(cachedDetail);
+      setDetailError(null);
+      pendingDetailIdRef.current = null;
+      return;
+    }
+
+    if (pendingDetailIdRef.current === selectedConversation.id) {
+      return;
+    }
+
+    pendingDetailIdRef.current = selectedConversation.id;
+    setSelectedDetail(null);
+    setDetailError(null);
+
+    startDetailTransition(async () => {
+      try {
+        const detail = await getSupportConversationDetail(selectedConversation.id);
+        if (pendingDetailIdRef.current !== selectedConversation.id) return;
+        if (!detail) {
+          setSelectedDetail(null);
+          setDetailError("This conversation could not be loaded.");
+          pendingDetailIdRef.current = null;
+          return;
+        }
+        detailCacheRef.current.set(detail.id, detail);
+        setSelectedDetail(detail);
+        pendingDetailIdRef.current = null;
+      } catch (error) {
+        if (pendingDetailIdRef.current !== selectedConversation.id) return;
+        setSelectedDetail(null);
+        setDetailError(
+          error instanceof Error ? error.message : "Conversation details could not be loaded.",
+        );
+        pendingDetailIdRef.current = null;
+      }
+    });
+  }, [selectedConversation]);
+
+  const visibleTimeline = selectedDetailForConversation?.timeline.slice(-visibleTimelineCount) ?? [];
+
+  function handleConversationSelect(conversationId: string) {
+    setSelectedId(conversationId);
+
+    const cachedDetail = detailCacheRef.current.get(conversationId);
+    if (cachedDetail) {
+      setSelectedDetail(cachedDetail);
+      setDetailError(null);
+      pendingDetailIdRef.current = null;
+      return;
+    }
+
+    pendingDetailIdRef.current = conversationId;
+    setSelectedDetail(null);
+    setDetailError(null);
+
+    startDetailTransition(async () => {
+      try {
+        const detail = await getSupportConversationDetail(conversationId);
+        if (pendingDetailIdRef.current !== conversationId) return;
+        if (!detail) {
+          setSelectedDetail(null);
+          setDetailError("This conversation could not be loaded.");
+          pendingDetailIdRef.current = null;
+          return;
+        }
+        detailCacheRef.current.set(detail.id, detail);
+        setSelectedDetail(detail);
+        pendingDetailIdRef.current = null;
+      } catch (error) {
+        if (pendingDetailIdRef.current !== conversationId) return;
+        setSelectedDetail(null);
+        setDetailError(
+          error instanceof Error ? error.message : "Conversation details could not be loaded.",
+        );
+        pendingDetailIdRef.current = null;
+      }
+    });
+  }
 
   return (
     <WorkspaceContainer variant="full" className="h-full overflow-hidden">
@@ -300,11 +290,7 @@ export function SupportWorkspace({
         <PageHeader
           title="Support"
           description="Channel-specific support operations with customer context on demand."
-          stats={[
-            { label: "open", value: "18" },
-            { label: "urgent", value: "3" },
-            { label: "unassigned", value: "6" },
-          ]}
+          stats={workspaceStats}
           actions={
             <>
               <Button variant="outline" size="sm">
@@ -324,6 +310,7 @@ export function SupportWorkspace({
               channel={channel}
               onChannelChange={setChannel}
               supportModes={supportModes}
+              disabled={!hasConversations}
             />
 
             <Card className="min-h-0 flex-1 gap-0 py-0">
@@ -344,19 +331,30 @@ export function SupportWorkspace({
                     onChange={(event) => setQuery(event.target.value)}
                     placeholder={`Search ${channelLabel(channel).toLowerCase()} conversations...`}
                     className="pl-9"
+                    disabled={!hasConversations}
                   />
                 </div>
 
                 <div className="min-h-0 flex-1 overflow-y-auto pr-2">
                   <div className="space-y-3 pr-1">
+                    {!hasConversations ? (
+                      <div className="rounded-2xl border border-dashed border-border/80 bg-secondary/10 px-4 py-5">
+                        <p className="text-sm font-semibold text-foreground">
+                          No conversations in your assigned inboxes yet
+                        </p>
+                        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                          Support will appear here once conversations are synced into an inbox your account can access.
+                        </p>
+                      </div>
+                    ) : null}
                     {filteredConversations.map((conversation) => (
                       <button
                         key={conversation.id}
                         type="button"
-                        onClick={() => setSelectedId(conversation.id)}
+                        onClick={() => handleConversationSelect(conversation.id)}
                         className={cn(
                           "block w-full max-w-full overflow-hidden rounded-2xl border px-4 py-4 text-left transition-colors",
-                          selectedConversation.id === conversation.id
+                          selectedConversation?.id === conversation.id
                             ? "border-primary/25 bg-primary/5"
                             : "border-border/70 hover:bg-accent/35",
                         )}
@@ -410,147 +408,207 @@ export function SupportWorkspace({
 
           <div className="flex min-h-0 flex-col gap-6">
             <Card className="min-h-0 flex-1 gap-0 py-0">
-              <CardHeader className="border-b border-border px-5 py-4">
-                <div className="flex items-start gap-3">
-                  <Avatar className="size-10 border border-border/70">
-                    <AvatarFallback>
-                      {selectedConversation.customer
-                        .split(" ")
-                        .map((chunk) => chunk[0])
-                        .join("")
-                        .slice(0, 2)}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <CardTitle className="max-w-full text-balance break-words text-lg leading-tight [overflow-wrap:anywhere]">
-                      {selectedConversation.customer}
-                    </CardTitle>
-                    <CardDescription className="mt-1 max-w-full text-pretty break-words text-sm leading-6 [overflow-wrap:anywhere]">
-                      {selectedConversation.subject}
-                    </CardDescription>
-                    <p className="mt-1 truncate text-sm text-muted-foreground">
-                      {selectedConversation.linkedCustomer
-                        ? selectedConversation.company
-                        : `${channelLabel(selectedConversation.channel)} conversation`}
-                    </p>
-                    <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2">
-                      <Badge variant={priorityVariant(selectedConversation.priority)}>
-                        {selectedConversation.priority}
-                      </Badge>
-                      <Badge variant={statusVariant(selectedConversation.status)}>
-                        {statusLabel(selectedConversation.status)}
-                      </Badge>
-                      <Badge variant="outline" className="max-w-full truncate">
-                        Assigned to {selectedConversation.assignee}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="flex min-h-0 flex-1 flex-col px-0">
-                <div
-                  ref={timelineScrollRef}
-                  className="min-h-0 flex-1 overflow-y-auto px-5 py-4"
-                  onScroll={(event) => {
-                    const target = event.currentTarget;
-                    if (
-                      target.scrollTop < 120 &&
-                      visibleTimelineCount < selectedConversation.timeline.length
-                    ) {
-                      pendingOlderLoadRef.current = {
-                        previousHeight: target.scrollHeight,
-                      };
-                      setVisibleTimelineCount((count) =>
-                        Math.min(count + 20, selectedConversation.timeline.length),
-                      );
-                    }
-                  }}
-                >
-                  <div className="space-y-5">
-                    {visibleTimeline.map((item) =>
-                      item.kind === "message" ? (
-                        <div
-                          key={item.id}
-                          className={cn(
-                            "max-w-[82%] rounded-2xl border px-4 py-3",
-                            item.role === "agent"
-                              ? "ml-auto border-primary/20 bg-primary/5"
-                              : "border-border/70 bg-background",
-                          )}
-                        >
-                          <div className="mb-2 flex items-center justify-between gap-3">
-                            <p className="text-sm font-semibold text-foreground">{item.author}</p>
-                            <p className="text-xs text-muted-foreground">{item.sentAt}</p>
-                          </div>
-                          <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
-                            {item.body}
-                          </p>
+              {selectedConversation ? (
+                <>
+                  <CardHeader className="border-b border-border px-5 py-4">
+                    <div className="flex items-start gap-3">
+                      <Avatar className="size-10 border border-border/70">
+                        <AvatarFallback>
+                          {selectedConversation.customer
+                            .split(" ")
+                            .map((chunk) => chunk[0])
+                            .join("")
+                            .slice(0, 2)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="max-w-full text-balance break-words text-lg leading-tight [overflow-wrap:anywhere]">
+                          {selectedConversation.customer}
+                        </CardTitle>
+                        <CardDescription className="mt-1 max-w-full text-pretty break-words text-sm leading-6 [overflow-wrap:anywhere]">
+                          {selectedConversation.subject}
+                        </CardDescription>
+                        <p className="mt-1 truncate text-sm text-muted-foreground">
+                          {selectedConversation.linkedCustomer
+                            ? selectedConversation.company
+                            : `${channelLabel(selectedConversation.channel)} conversation`}
+                        </p>
+                        <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2">
+                          <Badge variant={priorityVariant(selectedConversation.priority)}>
+                            {selectedConversation.priority}
+                          </Badge>
+                          <Badge variant={statusVariant(selectedConversation.status)}>
+                            {statusLabel(selectedConversation.status)}
+                          </Badge>
+                          <Badge variant="outline" className="max-w-full truncate">
+                            Assigned to {selectedConversation.assignee}
+                          </Badge>
                         </div>
-                      ) : (
-                        <TimelineEventItem key={item.id} event={item} />
-                      ),
-                    )}
-                    {visibleTimelineCount < selectedConversation.timeline.length ? (
-                      <div className="flex justify-center pt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            setVisibleTimelineCount((count) =>
-                              Math.min(count + 20, selectedConversation.timeline.length),
-                            )
-                          }
-                        >
-                          Load more activity
-                        </Button>
                       </div>
-                    ) : null}
-                  </div>
-                </div>
-                <Separator />
-                <div className="space-y-3 px-5 py-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    {selectedConversation.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                  <Textarea
-                    placeholder="Reply to the customer, add an internal update, or draft a macro-assisted response..."
-                    className="min-h-24 resize-none"
-                  />
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <p className="text-sm text-muted-foreground">
-                      Waiting on{" "}
-                      <span className="font-medium text-foreground">
-                        {selectedConversation.waitingOn === "none"
-                          ? "no one"
-                          : selectedConversation.waitingOn}
-                      </span>
-                    </p>
-                    <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm">
-                        Internal note
-                      </Button>
-                      <Button size="sm">
-                        <Send className="size-4" />
-                        Send reply
-                      </Button>
                     </div>
-                  </div>
-                </div>
-              </CardContent>
+                  </CardHeader>
+                  <CardContent className="flex min-h-0 flex-1 flex-col px-0">
+                    <div
+                      ref={timelineScrollRef}
+                      className="min-h-0 flex-1 overflow-y-auto px-5 py-4"
+                      onScroll={(event) => {
+                        const target = event.currentTarget;
+                        if (
+                          target.scrollTop < 120 &&
+                          selectedDetailForConversation &&
+                          visibleTimelineCount < selectedDetailForConversation.timeline.length
+                        ) {
+                          pendingOlderLoadRef.current = {
+                            previousHeight: target.scrollHeight,
+                          };
+                          setVisibleTimelineCount((count) =>
+                            Math.min(count + 20, selectedDetailForConversation.timeline.length),
+                          );
+                        }
+                      }}
+                    >
+                      <div className="space-y-5">
+                        {selectedDetailForConversation ? (
+                          <>
+                            {visibleTimeline.map((item) =>
+                              item.kind === "message" ? (
+                                <div
+                                  key={item.id}
+                                  className={cn(
+                                    "max-w-[82%] rounded-2xl border px-4 py-3",
+                                    item.role === "agent"
+                                      ? "ml-auto border-primary/20 bg-primary/5"
+                                      : "border-border/70 bg-background",
+                                  )}
+                                >
+                                  <div className="mb-2 flex items-center justify-between gap-3">
+                                    <p className="text-sm font-semibold text-foreground">
+                                      {item.author}
+                                    </p>
+                                    <p className="text-xs text-muted-foreground">{item.sentAt}</p>
+                                  </div>
+                                  <p className="whitespace-pre-wrap text-sm leading-6 text-foreground">
+                                    {item.body}
+                                  </p>
+                                </div>
+                              ) : (
+                                <TimelineEventItem key={item.id} event={item} />
+                              ),
+                            )}
+                          </>
+                        ) : (
+                          <div className="rounded-2xl border border-dashed border-border/80 bg-secondary/10 px-4 py-5">
+                            <p className="text-sm font-semibold text-foreground">
+                              {detailError ?? "Loading conversation activity"}
+                            </p>
+                            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                              {detailError
+                                ? "Try another thread or refresh the workspace."
+                                : isDetailPending
+                                  ? "Fetching the latest timeline, messages, and events for this thread."
+                                  : "Conversation details will appear here once the thread is ready."}
+                            </p>
+                          </div>
+                        )}
+                        {selectedDetailForConversation &&
+                        visibleTimelineCount < selectedDetailForConversation.timeline.length ? (
+                          <div className="flex justify-center pt-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() =>
+                                setVisibleTimelineCount((count) =>
+                                  Math.min(
+                                    count + 20,
+                                    selectedDetailForConversation.timeline.length,
+                                  ),
+                                )
+                              }
+                            >
+                              Load more activity
+                            </Button>
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                    <Separator />
+                    <div className="space-y-3 px-5 py-4">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {selectedConversation.tags.map((tag) => (
+                          <Badge key={tag} variant="secondary">
+                            {tag}
+                          </Badge>
+                        ))}
+                      </div>
+                      <Textarea
+                        placeholder="Outbound messaging is not wired up yet — this composer is disabled."
+                        className="min-h-24 resize-none"
+                        disabled
+                        aria-disabled
+                      />
+                      <div className="flex flex-wrap items-center justify-between gap-3">
+                        <p className="text-sm text-muted-foreground">
+                          Waiting on{" "}
+                          <span className="font-medium text-foreground">
+                            {selectedConversation.waitingOn === "none"
+                              ? "no one"
+                              : selectedConversation.waitingOn}
+                          </span>
+                        </p>
+                        <TooltipProvider delayDuration={150}>
+                          <div className="flex items-center gap-2">
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span tabIndex={0}>
+                                  <Button variant="outline" size="sm" disabled aria-disabled>
+                                    Internal note
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                Outbound support messaging is not wired up yet.
+                              </TooltipContent>
+                            </Tooltip>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span tabIndex={0}>
+                                  <Button size="sm" disabled aria-disabled>
+                                    <Send className="size-4" />
+                                    Send reply
+                                  </Button>
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                Outbound support messaging is not wired up yet.
+                              </TooltipContent>
+                            </Tooltip>
+                          </div>
+                        </TooltipProvider>
+                      </div>
+                    </div>
+                  </CardContent>
+                </>
+              ) : (
+                <EmptyConversationState />
+              )}
             </Card>
 
           </div>
 
           <div className="flex min-h-0 flex-col gap-6">
             <Card className="min-h-0 flex-1 gap-0 py-0">
-              <InlineSupportMcpPanel conversation={selectedConversation} />
+              {selectedConversation ? (
+                <InlineSupportMcpPanel conversation={selectedConversation} />
+              ) : (
+                <EmptySidePanel title="AI Agent" description="Select a conversation to ask the agent for help." />
+              )}
             </Card>
             <Card className="min-h-0 flex-1 gap-0 py-0">
-              <InlineSupportContextPanel conversation={selectedConversation} />
+              {selectedConversation ? (
+                <InlineSupportContextPanel conversation={selectedConversation} />
+              ) : (
+                <EmptySidePanel title="Customer 360" description="Customer context will appear here once you open a conversation." />
+              )}
             </Card>
           </div>
         </div>
@@ -563,10 +621,12 @@ function SupportModeNav({
   channel,
   onChannelChange,
   supportModes,
+  disabled,
 }: {
   channel: SupportChannel;
   onChannelChange: (value: SupportChannel) => void;
   supportModes: Array<{ id: SupportChannel; label: string; count: number; icon: typeof Mail }>;
+  disabled?: boolean;
 }) {
   return (
     <Card className="gap-0 py-0">
@@ -585,9 +645,13 @@ function SupportModeNav({
                 <button
                   key={mode.id}
                   type="button"
+                  disabled={disabled}
                   onClick={() => onChannelChange(mode.id)}
                   className={cn(
                     "flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition-colors",
+                    disabled
+                      ? "cursor-not-allowed opacity-60"
+                      : "",
                     active
                       ? "border-primary/25 bg-primary/5"
                       : "border-border/70 hover:bg-accent/35",
@@ -614,6 +678,35 @@ function SupportModeNav({
   );
 }
 
+function EmptyConversationState() {
+  return (
+    <div className="flex h-full min-h-0 flex-1 items-center justify-center p-6">
+      <div className="max-w-md rounded-2xl border border-dashed border-border/80 bg-secondary/10 px-6 py-8 text-center">
+        <p className="text-base font-semibold text-foreground">No conversation selected</p>
+        <p className="mt-2 text-sm leading-6 text-muted-foreground">
+          Once a conversation is available in one of your assigned inboxes, the thread and reply tools will appear here.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function EmptySidePanel({ title, description }: { title: string; description: string }) {
+  return (
+    <div className="h-full overflow-hidden">
+      <CardHeader className="border-b border-border px-5 py-4">
+        <CardTitle className="text-base">{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <div className="p-5">
+        <div className="rounded-xl border border-dashed border-border/80 bg-secondary/10 px-4 py-5">
+          <p className="text-sm text-muted-foreground">Nothing to show yet.</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function TimelineEventItem({ event }: { event: Extract<SupportWorkspaceTimelineItem, { kind: "event" }> }) {
   return (
     <div className="flex items-center justify-center">
@@ -630,7 +723,11 @@ function TimelineEventItem({ event }: { event: Extract<SupportWorkspaceTimelineI
     </div>
   );
 }
-function InlineSupportContextPanel({ conversation }: { conversation: SupportWorkspaceConversation }) {
+function InlineSupportContextPanel({
+  conversation,
+}: {
+  conversation: SupportWorkspaceConversationSummary;
+}) {
   if (!conversation.linkedCustomer) {
     return (
       <div className="h-full overflow-hidden">
@@ -687,9 +784,15 @@ function InlineSupportContextPanel({ conversation }: { conversation: SupportWork
               Operational context
             </p>
             <div className="grid gap-2">
-              <DenseInfoRow label="Past-due pressure" value="2 unresolved invoices" />
-              <DenseInfoRow label="Renewal handoff" value="Inside current renewal month" />
-              <DenseInfoRow label="Support tags" value={conversation.tags.join(", ")} />
+              <DenseInfoRow
+                label="Waiting on"
+                value={conversation.waitingOn === "none" ? "No blocker" : conversation.waitingOn}
+              />
+              <DenseInfoRow label="Thread status" value={statusLabel(conversation.status)} />
+              <DenseInfoRow
+                label="Support tags"
+                value={conversation.tags.length > 0 ? conversation.tags.join(", ") : "No tags"}
+              />
             </div>
           </div>
         </div>
@@ -698,7 +801,11 @@ function InlineSupportContextPanel({ conversation }: { conversation: SupportWork
   );
 }
 
-function InlineSupportMcpPanel({ conversation }: { conversation: SupportWorkspaceConversation }) {
+function InlineSupportMcpPanel({
+  conversation,
+}: {
+  conversation: SupportWorkspaceConversationSummary;
+}) {
   const [draft, setDraft] = useState("");
   const [messages, setMessages] = useState<AgentChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);

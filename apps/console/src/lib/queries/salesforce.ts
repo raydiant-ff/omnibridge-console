@@ -1,6 +1,6 @@
 "use server";
 
-import { soql } from "@omnibridge/salesforce";
+import { soql, escapeSoql } from "@omnibridge/salesforce";
 import { flags } from "@/lib/feature-flags";
 import { getMockSalesforceData, type MockSalesforceData } from "@/lib/mock-data";
 
@@ -11,15 +11,17 @@ export async function getSalesforceDataForCustomer(sfAccountId: string | null): 
     return getMockSalesforceData(sfAccountId);
   }
 
+  const safeId = escapeSoql(sfAccountId);
+
   const [accounts, contacts, opportunities] = await Promise.all([
     soql<Record<string, unknown>>(
-      `SELECT Id, Name, Website, Industry, Type, BillingCity, BillingState, BillingCountry, Phone, AnnualRevenue FROM Account WHERE Id = '${sfAccountId}' LIMIT 1`,
+      `SELECT Id, Name, Website, Industry, Type, BillingCity, BillingState, BillingCountry, Phone, AnnualRevenue FROM Account WHERE Id = '${safeId}' LIMIT 1`,
     ),
     soql<Record<string, unknown>>(
-      `SELECT Id, Name, Email, Title, Phone FROM Contact WHERE AccountId = '${sfAccountId}' ORDER BY Name LIMIT 25`,
+      `SELECT Id, Name, Email, Title, Phone FROM Contact WHERE AccountId = '${safeId}' ORDER BY Name LIMIT 25`,
     ),
     soql<Record<string, unknown>>(
-      `SELECT Id, Name, StageName, Amount, CloseDate FROM Opportunity WHERE AccountId = '${sfAccountId}' ORDER BY CloseDate DESC LIMIT 25`,
+      `SELECT Id, Name, StageName, Amount, CloseDate FROM Opportunity WHERE AccountId = '${safeId}' ORDER BY CloseDate DESC LIMIT 25`,
     ),
   ]);
 

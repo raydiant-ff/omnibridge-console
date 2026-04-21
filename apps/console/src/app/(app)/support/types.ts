@@ -24,24 +24,31 @@ export type SupportWorkspaceEvent = {
 
 export type SupportWorkspaceTimelineItem = SupportWorkspaceMessage | SupportWorkspaceEvent;
 
-export type SupportWorkspaceConversation = {
+type SupportWorkspaceConversationBase = {
   id: string;
   customer: string;
   company: string;
   linkedCustomer: boolean;
   subject: string;
-  preview: string;
   channel: SupportChannel;
   status: SupportStatus;
   priority: SupportPriority;
   assignee: string;
-  lastActivity: string;
   waitingOn: "customer" | "internal" | "none";
   tags: string[];
+};
+
+export type SupportWorkspaceConversationSummary = SupportWorkspaceConversationBase & {
+  preview: string;
+  lastActivity: string;
   mrr: string;
   billing: string;
   renewal: string;
   csm: string;
-  messages: SupportWorkspaceMessage[];
+};
+
+export type SupportWorkspaceConversationDetail = SupportWorkspaceConversationBase & {
+  customerIndexId: string | null;
+  stripeCustomerId: string | null;
   timeline: SupportWorkspaceTimelineItem[];
 };

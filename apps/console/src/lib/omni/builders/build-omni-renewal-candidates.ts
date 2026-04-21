@@ -385,15 +385,6 @@ export async function buildOmniRenewalDashboard(
   const monthParams: unknown[] = [start, end];
   if (csmFilter && csmFilter !== "__unassigned__") monthParams.push(csmFilter);
 
-  const monthContracts = await prisma.$queryRawUnsafe<ContractRow[]>(`
-    ${CONTRACT_SELECT}
-    WHERE c.do_not_renew = false
-      AND c.end_date >= $1
-      AND c.end_date < $2
-      ${csmWhere}
-    ORDER BY c.end_date ASC
-  `, ...monthParams);
-
   // 2. Overdue contracts (Activated, past end_date)
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -406,14 +397,24 @@ export async function buildOmniRenewalDashboard(
   const overdueParams: unknown[] = [today];
   if (csmFilter && csmFilter !== "__unassigned__") overdueParams.push(csmFilter);
 
-  const overdueContracts = await prisma.$queryRawUnsafe<ContractRow[]>(`
-    ${CONTRACT_SELECT}
-    WHERE c.status = 'Activated'
-      AND c.do_not_renew = false
-      AND c.end_date < $1
-      ${overdueCsmWhere}
-    ORDER BY c.end_date ASC
-  `, ...overdueParams);
+  const [monthContracts, overdueContracts] = await Promise.all([
+    prisma.$queryRawUnsafe<ContractRow[]>(`
+      ${CONTRACT_SELECT}
+      WHERE c.do_not_renew = false
+        AND c.end_date >= $1
+        AND c.end_date < $2
+        ${csmWhere}
+      ORDER BY c.end_date ASC
+    `, ...monthParams),
+    prisma.$queryRawUnsafe<ContractRow[]>(`
+      ${CONTRACT_SELECT}
+      WHERE c.status = 'Activated'
+        AND c.do_not_renew = false
+        AND c.end_date < $1
+        ${overdueCsmWhere}
+      ORDER BY c.end_date ASC
+    `, ...overdueParams),
+  ]);
 
   // Compute freshness from subscription sync times
   const allSubIds = [

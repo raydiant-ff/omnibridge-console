@@ -23,6 +23,14 @@ export type { OmniAccountSpine } from "./omni-account-spine";
 // Subscription Facts
 export type { OmniSubscriptionFacts } from "./omni-subscription-facts";
 
+// Subscription Classification
+export type {
+  OmniSubscriptionClassification,
+  OmniSubscriptionClassificationResult,
+  OmniSubscriptionClassificationPolicyView,
+  OmniSubscriptionClassificationStripeView,
+} from "./omni-subscription-classification";
+
 // Renewal Candidates
 export type {
   OmniRenewalCandidate,
