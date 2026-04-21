@@ -994,6 +994,7 @@ model Renewal {
   owner     User?         @relation("RenewalOwner", fields: [ownerUserId], references: [id])
 
   @@index([customerIndexId])
+  @@index([customerIndexId, targetRenewalDate])
   @@index([status])
   @@index([targetRenewalDate])
   @@index([sfContractId])
