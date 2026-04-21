@@ -46,8 +46,8 @@ export function SidebarShell({ collapsed = false, children, className }: Sidebar
     <aside
       data-collapsed={collapsed}
       className={cn(
-        "h-screen shrink-0 flex flex-col border-r border-border bg-card transition-all duration-200",
-        collapsed ? "w-[60px]" : "w-[260px]",
+        "h-screen shrink-0 flex flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-all duration-200",
+        collapsed ? "w-[72px]" : "w-[272px]",
         className,
       )}
     >
@@ -68,13 +68,13 @@ interface SidebarNavSectionProps {
 
 export function SidebarNavSection({ label, children, className }: SidebarNavSectionProps) {
   return (
-    <div className={cn("px-4 py-2", className)}>
+    <div className={cn("px-4 py-3", className)}>
       {label && (
-        <p className="px-2 mb-1.5 text-xs font-medium text-muted-foreground">
+        <p className="mb-2 px-3.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-muted-foreground/85">
           {label}
         </p>
       )}
-      <ul className="space-y-0.5">{children}</ul>
+      <ul className="space-y-1">{children}</ul>
     </div>
   );
 }
@@ -90,7 +90,7 @@ interface SidebarFooterProps {
 
 export function SidebarFooter({ children, className }: SidebarFooterProps) {
   return (
-    <div className={cn("mt-auto border-t border-border px-4 py-4", className)}>{children}</div>
+    <div className={cn("mt-auto border-t border-sidebar-border px-4 py-4", className)}>{children}</div>
   );
 }
 
@@ -107,7 +107,7 @@ export function TopBar({ children, className }: TopBarProps) {
   return (
     <header
       className={cn(
-        "h-14 shrink-0 flex items-center border-b border-border bg-card px-6 gap-4",
+        "h-16 shrink-0 flex items-center border-b border-border bg-background/95 px-8 gap-4 backdrop-blur-sm",
         className,
       )}
     >

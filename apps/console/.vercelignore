@@ -1,0 +1,11 @@
+.next
+.next_build_retry_*
+.next_stale_*
+.turbo
+node_modules
+.env
+.env.local
+.env.*.local
+.DS_Store
+tsconfig.tsbuildinfo
+*.log

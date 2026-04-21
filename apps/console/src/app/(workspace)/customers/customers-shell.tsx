@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { SidebarIcon, Search, Database } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { StatStrip } from "@/components/omni";
+import type { Stat } from "@/components/omni/stat-strip";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -55,52 +57,50 @@ function MirrorStatus() {
 // ---------------------------------------------------------------------------
 
 function PageIntro({ totals }: { totals: CustomerDirectoryTotals }) {
-  const stats = [
-    { label: "Total", value: totals.totalCustomers.toLocaleString() },
-    { label: "Active", value: totals.activeCustomers.toLocaleString() },
-    { label: "Salesforce", value: totals.sfAccountCount.toLocaleString() },
-    { label: "Stripe", value: totals.stripeCustomerCount.toLocaleString() },
-    { label: "MRR", value: fmtMrr(totals.totalMrrCents) },
+  const stats: Stat[] = [
+    {
+      label: "Customers",
+      value: totals.totalCustomers.toLocaleString(),
+      meta: `${totals.activeCustomers.toLocaleString()} active`,
+    },
+    {
+      label: "Salesforce",
+      value: totals.sfAccountCount.toLocaleString(),
+      meta: "Accounts mirrored into Omni",
+    },
+    {
+      label: "Stripe",
+      value: totals.stripeCustomerCount.toLocaleString(),
+      meta: "Customers with billing context",
+    },
+    {
+      label: "Portfolio MRR",
+      value: fmtMrr(totals.totalMrrCents),
+      meta: "Live mirrored subscription revenue",
+    },
     {
       label: "Renewing ≤90d",
       value: totals.renewingIn90d.toLocaleString(),
-      warn: totals.renewingIn30d > 0 ? `${totals.renewingIn30d} ≤30d` : undefined,
+      meta: totals.renewingIn30d > 0 ? `${totals.renewingIn30d} due within 30 days` : "No immediate renewal spike",
+      variant: totals.renewingIn30d > 0 ? "danger" : "default",
     },
   ];
 
   return (
-    <div className="border-b">
-      {/* Title row */}
-      <div className="flex items-start justify-between px-6 pt-6 pb-4">
+    <div className="border-b border-border/80">
+      <div className="flex flex-col gap-4 px-6 pt-6 pb-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Customers</h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <h1 className="text-[1.65rem] font-semibold tracking-[-0.04em] text-foreground">Customers</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
             Customer accounts across Salesforce and Stripe
           </p>
         </div>
-        <MirrorStatus />
+        <div className="shrink-0">
+          <MirrorStatus />
+        </div>
       </div>
-
-      {/* Stats row */}
-      <div className="flex items-center px-6 pb-5 gap-0">
-        {stats.map((stat, i) => (
-          <div key={stat.label} className="flex items-center">
-            {i > 0 && <div className="w-px h-7 bg-border mx-5" />}
-            <div className="flex flex-col gap-0">
-              <span className="text-xs text-muted-foreground leading-none">
-                {stat.label}
-              </span>
-              <div className="flex items-baseline gap-1.5 mt-1.5">
-                <span className="text-lg font-semibold tabular-nums leading-none">
-                  {stat.value}
-                </span>
-                {stat.warn && (
-                  <span className="text-xs text-destructive font-medium">{stat.warn}</span>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
+      <div className="px-6 pb-5">
+        <StatStrip stats={stats} className="xl:grid-cols-5 2xl:grid-cols-5" />
       </div>
     </div>
   );
@@ -361,7 +361,7 @@ export function CustomersShell({ rows, totals }: CustomersShellProps) {
         <SidebarInset className="bg-white">
           <PageIntro totals={totals} />
 
-          <div className="px-6 pt-4 pb-6">
+          <div className="px-6 pt-5 pb-6">
             <DataTable
               columns={customerDirectoryColumns}
               data={filtered}

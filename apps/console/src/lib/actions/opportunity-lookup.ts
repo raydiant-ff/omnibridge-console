@@ -23,7 +23,7 @@ export async function getOpportunityPanelData(
 
   const sfBase =
     process.env.NEXT_PUBLIC_SF_ORG_URL ??
-    "https://raydiant.lightning.force.com";
+    "https://yourorg.lightning.force.com";
 
   const [sfAccount, opportunities] = await Promise.all([
     getAccountDetailById(sfAccountId).catch(() => null),

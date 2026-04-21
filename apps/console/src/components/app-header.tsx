@@ -6,14 +6,14 @@ export function AppHeader() {
   const { state } = usePageTitle();
 
   return (
-    <header className="h-12 px-6 flex items-center border-b border-border bg-card shrink-0">
+    <header className="h-16 px-8 flex items-center border-b border-border bg-background/95 shrink-0 backdrop-blur-sm">
       {state.title && (
-        <div className="flex items-baseline gap-3">
-          <h1 className="text-sm font-semibold text-foreground tracking-tight">
+        <div className="flex items-baseline gap-3.5">
+          <h1 className="text-xl font-semibold text-foreground tracking-tight">
             {state.title}
           </h1>
           {state.description && (
-            <p className="text-sm text-muted-foreground">{state.description}</p>
+            <p className="text-sm text-muted-foreground leading-none">{state.description}</p>
           )}
         </div>
       )}

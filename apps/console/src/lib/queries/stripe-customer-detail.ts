@@ -1,6 +1,7 @@
 "use server";
 
 import { cached } from "@/lib/cache";
+import { getStripeClient } from "@omnibridge/stripe";
 import { flags } from "@/lib/feature-flags";
 
 export interface StripeSubscriptionItem {
@@ -104,7 +105,6 @@ async function _fetchStripeCustomerDetailFromApi(
   stripeCustomerId: string,
 ): Promise<StripeCustomerDetail | null> {
   try {
-    const { getStripeClient } = await import("@omnibridge/stripe");
     const stripe = getStripeClient();
 
     const [subscriptions, paymentIntents, invoices] = await Promise.all([

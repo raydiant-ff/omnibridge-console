@@ -20,7 +20,7 @@ interface Props {
 }
 
 const STRIPE_DASHBOARD = "https://dashboard.stripe.com";
-const SF_BASE = process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://raydiant.lightning.force.com";
+const SF_BASE = process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://yourorg.lightning.force.com";
 
 const ACTION_COLORS: Record<string, string> = {
   "quote.created": "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",

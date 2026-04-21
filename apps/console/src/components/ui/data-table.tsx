@@ -68,18 +68,21 @@ export function DataTable<TData, TValue>({
   const rowCount = table.getFilteredRowModel().rows.length;
 
   return (
-    <div className="flex flex-col gap-3">
-      {/* Toolbar: row count left, actions right */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-muted-foreground">
+    <div className="overflow-hidden rounded-2xl border border-border/80 bg-card shadow-[0_1px_2px_0_rgba(0,0,0,0.04)]">
+      <div className="flex flex-col gap-3 border-b border-border/80 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
             {rowCount.toLocaleString()} {rowCount === 1 ? entityName : `${entityName}s`}
           </span>
           {toolbar}
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="sm" className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 gap-1 rounded-full px-3 text-xs text-muted-foreground hover:text-foreground sm:self-auto self-start"
+            >
               Columns <ChevronDown className="size-3" />
             </Button>
           </DropdownMenuTrigger>
@@ -101,8 +104,7 @@ export function DataTable<TData, TValue>({
         </DropdownMenu>
       </div>
 
-      {/* Table */}
-      <div className="overflow-hidden rounded-lg border bg-white">
+      <div className="overflow-hidden">
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((hg) => (
@@ -142,14 +144,12 @@ export function DataTable<TData, TValue>({
           </TableBody>
         </Table>
       </div>
-
-      {/* Pagination */}
       {(table.getCanPreviousPage() || table.getCanNextPage()) && (
-        <div className="flex items-center justify-end gap-2 pt-1">
+        <div className="flex items-center justify-end gap-2 border-t border-border/80 px-5 py-3.5">
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 text-sm"
+            className="h-8 rounded-full px-3 text-sm"
             onClick={() => table.previousPage()}
             disabled={!table.getCanPreviousPage()}
           >
@@ -158,7 +158,7 @@ export function DataTable<TData, TValue>({
           <Button
             variant="ghost"
             size="sm"
-            className="h-8 text-sm"
+            className="h-8 rounded-full px-3 text-sm"
             onClick={() => table.nextPage()}
             disabled={!table.getCanNextPage()}
           >

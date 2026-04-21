@@ -6,6 +6,7 @@
 
 import { requireSession } from "@omnibridge/auth";
 import { prisma } from "@omnibridge/db";
+import { soql } from "@omnibridge/salesforce";
 import { flags } from "@/lib/feature-flags";
 
 export interface PortfolioSignals {
@@ -47,8 +48,6 @@ async function getSalesforceCounts(): Promise<{
   }
 
   try {
-    const { soql } = await import("@omnibridge/salesforce");
-
     const [accountResult, contractResult] = await Promise.all([
       soql<{
         activeCount: number;

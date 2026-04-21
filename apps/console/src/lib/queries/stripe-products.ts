@@ -1,6 +1,7 @@
 "use server";
 
 import { cached } from "@/lib/cache";
+import { getStripeClient } from "@omnibridge/stripe";
 import { flags } from "@/lib/feature-flags";
 
 export interface StripeProduct {
@@ -41,7 +42,6 @@ const MOCK_PRICES: StripeProductPrice[] = [
 ];
 
 async function _fetchStripeProductsFromApi(): Promise<StripeProduct[]> {
-  const { getStripeClient } = await import("@omnibridge/stripe");
   const stripe = getStripeClient();
 
   const allProducts = await paginate((starting_after) =>
@@ -76,7 +76,6 @@ export async function fetchPricesForProduct(productId: string): Promise<StripePr
   if (flags.useMockStripe) return MOCK_PRICES;
   return cached(
     async () => {
-      const { getStripeClient } = await import("@omnibridge/stripe");
       const stripe = getStripeClient();
       const prices = await stripe.prices.list({ product: productId, limit: 100 });
       return prices.data.map((p) => ({
@@ -161,7 +160,6 @@ export async function fetchStandardPriceForProduct(
   if (flags.useMockStripe) return MOCK_PRICES[0] ?? null;
   return cached(
     async () => {
-      const { getStripeClient } = await import("@omnibridge/stripe");
       const stripe = getStripeClient();
 
       const allPrices = await stripe.prices.list({

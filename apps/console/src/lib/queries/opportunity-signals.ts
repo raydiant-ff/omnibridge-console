@@ -1,6 +1,7 @@
 "use server";
 
 import { requireSession } from "@omnibridge/auth";
+import { getOpportunitiesByOwnerEmail } from "@omnibridge/salesforce";
 import { flags } from "@/lib/feature-flags";
 
 export interface MyOpportunitySignals {
@@ -29,7 +30,6 @@ export async function getMyOpportunitySignals(): Promise<MyOpportunitySignals> {
   }
 
   try {
-    const { getOpportunitiesByOwnerEmail } = await import("@omnibridge/salesforce");
     const records = await getOpportunitiesByOwnerEmail(email);
 
     const currentYear = new Date().getFullYear();

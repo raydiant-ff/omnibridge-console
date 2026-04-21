@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const config: NextConfig = {
+  serverExternalPackages: ["@prisma/client", "bcryptjs", "pdf-lib"],
   outputFileTracingRoot: path.join(__dirname, "../../"),
   outputFileTracingIncludes: {
     "/*": ["../../packages/db/generated/client/**"],

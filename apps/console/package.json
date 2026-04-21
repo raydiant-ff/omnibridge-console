@@ -4,12 +4,15 @@
   "private": true,
   "scripts": {
     "dev": "next dev --port 3000",
+    "dev:turbopack": "next dev --port 3000 --turbopack",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
+    "@omnibridge/anthropic": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
+    "@omnibridge/avochato": "workspace:*",
     "@omnibridge/auth": "workspace:*",
     "@omnibridge/db": "workspace:*",
     "@omnibridge/docusign": "workspace:*",

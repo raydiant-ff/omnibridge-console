@@ -23,9 +23,9 @@ find apps/console/src packages -name '*.ts' -o -name '*.tsx' 2>/dev/null \
   | head -15 || true
 echo
 
-if [ -f .cursor/.last-test-failure.txt ]; then
+if [ -f .ai/.last-test-failure.txt ]; then
   echo "--- Last captured test/lint failure ---"
-  tail -n 150 .cursor/.last-test-failure.txt
+  tail -n 150 .ai/.last-test-failure.txt
 else
-  echo "(No captured test failure in .cursor/.last-test-failure.txt)"
+  echo "(No captured test failure in .ai/.last-test-failure.txt)"
 fi

@@ -60,6 +60,70 @@ enum SignalSeverity {
   critical
 }
 
+enum SupportExternalSystem {
+  avochato
+  gmail
+}
+
+enum SupportChannel {
+  sms
+  chat
+  email
+}
+
+enum SupportConversationStatus {
+  open
+  pending_customer
+  pending_internal
+  resolved
+  closed
+  spam
+}
+
+enum SupportPriority {
+  low
+  normal
+  high
+  urgent
+}
+
+enum SupportWaitingOn {
+  customer
+  internal
+  none
+}
+
+enum SupportMessageDirection {
+  inbound
+  outbound
+  system
+}
+
+enum SupportMessageType {
+  text
+  email
+  chat
+  note
+  event
+}
+
+enum SupportParticipantRole {
+  customer
+  agent
+  cc
+  system
+}
+
+enum SupportConversationEventType {
+  assigned
+  status_changed
+  priority_changed
+  tagged
+  linked_customer
+  sync_error
+  sync_recovered
+}
+
 // ---------------------------------------------------------------------------
 // NextAuth models (required by @auth/prisma-adapter)
 // ---------------------------------------------------------------------------
@@ -129,6 +193,10 @@ model User {
   quotes            QuoteRecord[]
   ownedRenewals     Renewal[]     @relation("RenewalOwner")
   authoredNotes     CustomerNote[] @relation("NoteAuthor")
+  supportChannelAccesses SupportAgentChannelAccess[]
+  assignedSupportConversations SupportConversation[] @relation("SupportAssignee")
+  authoredSupportMessages SupportMessage[] @relation("SupportMessageAuthor")
+  supportConversationEvents SupportConversationEvent[] @relation("SupportEventActor")
 
   @@index([role])
   @@map("users")
@@ -153,6 +221,7 @@ model CustomerIndex {
   renewals      Renewal[]
   notes         CustomerNote[]
   signals       AccountSignal[]
+  supportConversations SupportConversation[]
 
   @@index([domain])
   @@index([sfAccountName])
@@ -499,6 +568,7 @@ model SfAccount {
   contacts  SfContact[]
   invoices  SfInvoice[]
   payments  SfPayment[]
+  quotes    SfQuote[]
 }
 
 model SfContract {
@@ -652,6 +722,42 @@ model SfPayment {
   @@index([status])
   @@index([paymentDate])
   @@map("sf_payments")
+}
+
+// ---------------------------------------------------------------------------
+// Salesforce CPQ quote mirror — header-level only.
+// LAYER: mirror — populated by sf-sync cron, not product code.
+// Maps to SBQQ__Quote__c. Line items (SBQQ__QuoteLine__c) are a future phase.
+// ---------------------------------------------------------------------------
+
+model SfQuote {
+  id                   String    @id // SBQQ__Quote__c.Id (18-char)
+  accountId            String    @map("account_id")
+  opportunityId        String?   @map("opportunity_id")
+  name                 String?
+  status               String // Draft, Sent, Accepted, Rejected, etc.
+  netAmount            Float?    @map("net_amount")
+  startDate            DateTime? @map("start_date") @db.Date
+  endDate              DateTime? @map("end_date") @db.Date
+  quoteType            String?   @map("quote_type")
+  isPrimary            Boolean   @default(false) @map("is_primary")
+  isOrdered            Boolean   @default(false) @map("is_ordered")
+  stripeSubscriptionId String?   @map("stripe_subscription_id")
+  stripeCustomerId     String?   @map("stripe_customer_id")
+  sfCreatedDate        DateTime? @map("sf_created_date")
+  sfLastModified       DateTime? @map("sf_last_modified")
+  syncedAt             DateTime  @default(now()) @map("synced_at")
+  createdAt            DateTime  @default(now()) @map("created_at")
+  updatedAt            DateTime  @updatedAt @map("updated_at")
+
+  account SfAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([opportunityId])
+  @@index([status])
+  @@index([stripeSubscriptionId])
+  @@index([sfLastModified])
+  @@map("sf_quotes")
 }
 
 // ---------------------------------------------------------------------------
@@ -888,6 +994,7 @@ model Renewal {
   owner     User?         @relation("RenewalOwner", fields: [ownerUserId], references: [id])
 
   @@index([customerIndexId])
+  @@index([customerIndexId, targetRenewalDate])
   @@index([status])
   @@index([targetRenewalDate])
   @@index([sfContractId])
@@ -944,4 +1051,205 @@ model AccountSignal {
   @@index([computedAt])
   @@index([expiresAt])
   @@map("account_signals")
+}
+
+// ---------------------------------------------------------------------------
+// Support domain
+// ---------------------------------------------------------------------------
+
+// SupportChannelAccount mirrors an Avochato inbox/account boundary.
+// This is the primary permission boundary we should honor inside Omni.
+model SupportChannelAccount {
+  id                String                @id @default(cuid())
+  externalSystem    SupportExternalSystem @default(avochato) @map("external_system")
+  externalAccountId String?               @map("external_account_id")
+  externalSubdomain String?               @unique @map("external_subdomain")
+  name              String
+  phone             String?
+  metadataJson      Json?                 @map("metadata_json")
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+
+  endpoints     SupportChannelEndpoint[]
+  accesses      SupportAgentChannelAccess[]
+  conversations SupportConversation[]
+
+  @@index([externalSystem])
+  @@map("support_channel_accounts")
+}
+
+// SupportChannelEndpoint represents a concrete transport endpoint inside a support account,
+// such as a phone number, chatbox, or later a Gmail mailbox.
+model SupportChannelEndpoint {
+  id                String                @id @default(cuid())
+  channelAccountId  String                @map("channel_account_id")
+  externalSystem    SupportExternalSystem @default(avochato) @map("external_system")
+  externalEndpointId String?              @map("external_endpoint_id")
+  channel           SupportChannel
+  label             String?
+  address           String?
+  active            Boolean               @default(true)
+  metadataJson      Json?                 @map("metadata_json")
+  createdAt         DateTime              @default(now()) @map("created_at")
+  updatedAt         DateTime              @updatedAt @map("updated_at")
+
+  channelAccount SupportChannelAccount @relation(fields: [channelAccountId], references: [id])
+  accesses       SupportAgentChannelAccess[]
+  conversations  SupportConversation[]
+
+  @@index([channelAccountId])
+  @@index([externalSystem, channel])
+  @@unique([channelAccountId, externalEndpointId])
+  @@map("support_channel_endpoints")
+}
+
+// SupportAgentChannelAccess mirrors which inboxes/endpoints an Omni user can see or act on.
+// Omni should not grant broader access than the external transport system does.
+model SupportAgentChannelAccess {
+  id               String   @id @default(cuid())
+  userId           String   @map("user_id")
+  channelAccountId String   @map("channel_account_id")
+  channelEndpointId String? @map("channel_endpoint_id")
+  externalUserId   String?  @map("external_user_id")
+  externalRole     String?  @map("external_role")
+  assignedOnly     Boolean  @default(false) @map("assigned_only")
+  canReply         Boolean  @default(true) @map("can_reply")
+  canAssign        Boolean  @default(false) @map("can_assign")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  user            User                   @relation(fields: [userId], references: [id])
+  channelAccount  SupportChannelAccount  @relation(fields: [channelAccountId], references: [id])
+  channelEndpoint SupportChannelEndpoint? @relation(fields: [channelEndpointId], references: [id])
+
+  @@unique([userId, channelAccountId, channelEndpointId])
+  @@index([channelAccountId])
+  @@index([channelEndpointId])
+  @@index([externalUserId])
+  @@map("support_agent_channel_access")
+}
+
+// SupportConversation is Omni's normalized support thread model.
+// For v1, Avochato owns transport state; Omni owns workflow, linking, and context.
+model SupportConversation {
+  id                   String                    @id @default(cuid())
+  externalSystem       SupportExternalSystem     @default(avochato) @map("external_system")
+  externalConversationId String                  @map("external_conversation_id")
+  externalAccountSubdomain String?               @map("external_account_subdomain")
+  channelAccountId     String?                   @map("channel_account_id")
+  channelEndpointId    String?                   @map("channel_endpoint_id")
+  customerIndexId      String?                   @map("customer_index_id")
+  sfAccountId          String?                   @map("sf_account_id")
+  stripeCustomerId     String?                   @map("stripe_customer_id")
+  externalContactId    String?                   @map("external_contact_id")
+  channel              SupportChannel
+  status               SupportConversationStatus @default(open)
+  priority             SupportPriority           @default(normal)
+  subject              String?
+  assigneeUserId       String?                   @map("assignee_user_id")
+  externalAssigneeId   String?                   @map("external_assignee_id")
+  firstMessageAt       DateTime                  @map("first_message_at")
+  lastMessageAt        DateTime                  @map("last_message_at")
+  lastInboundAt        DateTime?                 @map("last_inbound_at")
+  lastOutboundAt       DateTime?                 @map("last_outbound_at")
+  waitingOn            SupportWaitingOn?         @default(none) @map("waiting_on")
+  tagsJson             Json?                     @map("tags_json")
+  rawSummaryJson       Json?                     @map("raw_summary_json")
+  payloadJson          Json?                     @map("payload_json")
+  syncState            String                    @default("active") @map("sync_state")
+  lastWebhookAt        DateTime?                 @map("last_webhook_at")
+  lastSyncedAt         DateTime?                 @map("last_synced_at")
+  createdAt            DateTime                  @default(now()) @map("created_at")
+  updatedAt            DateTime                  @updatedAt @map("updated_at")
+
+  channelAccount SupportChannelAccount? @relation(fields: [channelAccountId], references: [id])
+  channelEndpoint SupportChannelEndpoint? @relation(fields: [channelEndpointId], references: [id])
+  customer       CustomerIndex?         @relation(fields: [customerIndexId], references: [id])
+  assignee       User?                  @relation("SupportAssignee", fields: [assigneeUserId], references: [id])
+  messages       SupportMessage[]
+  participants   SupportParticipant[]
+  events         SupportConversationEvent[]
+
+  @@unique([externalSystem, externalConversationId])
+  @@index([channelAccountId])
+  @@index([channelEndpointId])
+  @@index([customerIndexId])
+  @@index([sfAccountId])
+  @@index([stripeCustomerId])
+  @@index([assigneeUserId])
+  @@index([channel, status])
+  @@index([priority, lastMessageAt])
+  @@index([lastMessageAt])
+  @@map("support_conversations")
+}
+
+model SupportMessage {
+  id                String                  @id @default(cuid())
+  conversationId    String                  @map("conversation_id")
+  externalMessageId String                  @map("external_message_id")
+  direction         SupportMessageDirection
+  channel           SupportChannel
+  messageType       SupportMessageType      @default(text) @map("message_type")
+  body              String?                 @db.Text
+  bodyHtml          String?                 @db.Text @map("body_html")
+  subject           String?
+  fromDisplay       String?                 @map("from_display")
+  fromAddress       String?                 @map("from_address")
+  toAddress         String?                 @map("to_address")
+  sentAt            DateTime                @map("sent_at")
+  deliveryState     String?                 @map("delivery_state")
+  authorUserId      String?                 @map("author_user_id")
+  payloadJson       Json?                   @map("payload_json")
+  createdAt         DateTime                @default(now()) @map("created_at")
+
+  conversation SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  author       User?               @relation("SupportMessageAuthor", fields: [authorUserId], references: [id])
+
+  @@unique([conversationId, externalMessageId])
+  @@index([sentAt])
+  @@index([authorUserId])
+  @@index([direction, channel])
+  @@map("support_messages")
+}
+
+model SupportParticipant {
+  id                String                 @id @default(cuid())
+  conversationId    String                 @map("conversation_id")
+  role              SupportParticipantRole
+  externalContactId String?                @map("external_contact_id")
+  externalUserId    String?                @map("external_user_id")
+  name              String?
+  email             String?
+  phone             String?
+  sfContactId       String?                @map("sf_contact_id")
+  stripeCustomerId  String?                @map("stripe_customer_id")
+  createdAt         DateTime               @default(now()) @map("created_at")
+
+  conversation SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@index([externalContactId])
+  @@index([externalUserId])
+  @@index([email])
+  @@index([phone])
+  @@map("support_participants")
+}
+
+model SupportConversationEvent {
+  id              String                       @id @default(cuid())
+  conversationId  String                       @map("conversation_id")
+  externalEventId String?                      @map("external_event_id")
+  type            SupportConversationEventType
+  actorUserId     String?                      @map("actor_user_id")
+  externalActorId String?                      @map("external_actor_id")
+  payloadJson     Json?                        @map("payload_json")
+  createdAt       DateTime                     @default(now()) @map("created_at")
+
+  conversation SupportConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  actor        User?               @relation("SupportEventActor", fields: [actorUserId], references: [id])
+
+  @@index([conversationId, createdAt])
+  @@index([externalEventId])
+  @@index([actorUserId])
+  @@map("support_conversation_events")
 }

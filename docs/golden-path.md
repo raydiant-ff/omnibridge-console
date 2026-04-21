@@ -61,6 +61,24 @@ New UI components belong in:
 
 ---
 
+## Tooling stance
+
+Default team stance for implementation:
+
+- use local repo-native work as the primary coding lane
+- keep `shadcn` as the UI primitive system
+- use Figma for design source, inspection, and code linking
+- treat Cursor as optional infrastructure, not required product machinery
+- do not use Cursor cloud/background agents as a default workflow
+
+If using AI support:
+
+- use explicit debug, review, and UI lanes from `docs/ai/operating-plan.md`
+- keep Bugbot advisory only if enabled
+- keep final judgment for billing, auth, webhook, and source-of-truth changes in the local repo workflow
+
+---
+
 ## Domain rules (non-negotiable)
 
 - **Stripe is billing source of truth.** Never use `SfContract.stripeStatus` as authoritative billing state — use `StripeSubscription.status`.

@@ -32,7 +32,7 @@ import { formatCurrency } from "@/lib/format";
 import type { QuoteCustomer, QuoteType, ContractMode } from "../wizard";
 
 const SF_BASE =
-  process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://raydiant.lightning.force.com";
+  process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://yourorg.lightning.force.com";
 
 const SHOWS_CONTRACT_MODE: QuoteType[] = ["Expansion", "Renewal", "Amendment"];
 

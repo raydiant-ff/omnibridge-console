@@ -114,7 +114,7 @@ export default async function CustomerDetailPage({ params }: Props) {
 
   const stripeDetail = await getStripeCustomerDetail(account.stripeCustomerId);
 
-  const sfBase = process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://raydiant.lightning.force.com";
+  const sfBase = process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://yourorg.lightning.force.com";
   const sfUrl = `${sfBase}/lightning/r/Account/${account.id}/view`;
   const stripeUrl = account.stripeCustomerId
     ? `https://dashboard.stripe.com/customers/${account.stripeCustomerId}`

@@ -2,7 +2,7 @@ import { randomUUID } from "crypto";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { getServerSession } from "@omnibridge/auth";
-import { getRenewalDetail } from "@/lib/queries/cs-renewals";
+import { getOmniRenewalDetail } from "@/lib/omni/repo";
 
 function inferBillingFrequency(
   interval: string | null | undefined,
@@ -28,7 +28,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing candidateId" }, { status: 400 });
   }
 
-  const detail = await getRenewalDetail(decodeURIComponent(candidateId));
+  const detail = await getOmniRenewalDetail(decodeURIComponent(candidateId));
   if (!detail) {
     return NextResponse.json({ error: "Candidate not found" }, { status: 404 });
   }
@@ -39,29 +39,29 @@ export async function POST(request: Request) {
   const draft = {
     id: draftId,
     candidateId: c.candidateId,
-    subscriptionId: c.id,
-    customerId: c.customerId,
+    subscriptionId: c.subscriptionId,
+    customerId: c.omniAccountId,
     customerName: c.customerName,
     csmName: c.csmName ?? account?.csmName ?? null,
     sfAccountId: c.contract?.accountId ?? account?.id ?? null,
-    sfContractId: c.contract?.id ?? null,
+    sfContractId: c.sfContractId ?? null,
     contractNumber: c.contract?.contractNumber ?? null,
     lineItems: c.items.map((item) => ({
       id: item.id,
       productName: item.productName,
-      unitAmount: item.unitAmount,
+      unitAmount: item.unitAmountCents,
       currency: item.currency,
-      interval: item.interval,
+      interval: item.billingInterval,
       intervalCount: item.intervalCount,
       quantity: item.quantity,
-      mrr: item.mrr,
+      mrr: item.mrrCents,
       discount: 0,
       overrideUnitAmount: null as number | null,
     })),
     contractTerm: "1yr",
-    billingFrequency: inferBillingFrequency(c.items[0]?.interval, c.items[0]?.intervalCount),
-    collectionMethod: c.collectionMethod,
-    effectiveDate: c.contract?.endDate ?? c.currentPeriodEnd.slice(0, 10),
+    billingFrequency: inferBillingFrequency(c.items[0]?.billingInterval, c.items[0]?.intervalCount),
+    collectionMethod: c.billingMode,
+    effectiveDate: c.contract?.endDate ?? c.renewalDate.slice(0, 10),
     notes: "",
     createdAt: new Date().toISOString(),
   };

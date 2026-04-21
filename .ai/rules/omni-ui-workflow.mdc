@@ -1,0 +1,142 @@
+# Omni UI and Workflow Rule
+
+## Purpose
+These rules govern how Omni work surfaces should look and behave.
+
+The goal is not generic dashboard design.
+The goal is clear operational workflow design.
+
+For design implementation tasks, prefer routing through the `omni-ui` lane or `.ai/commands/ui-pass.md`.
+Keep design work grounded in the local shadcn-based primitive layer and avoid changing product logic unless the task explicitly requires it.
+
+## Core UI principles
+
+### 1. Table-first, not dashboard-first
+For operational routes:
+- the table is the primary surface
+- summary cards should be compact and secondary
+- side panels and detail surfaces should support investigation, not replace the table
+
+### 2. Summary first, evidence second
+In detail panels:
+- start with a compact summary of what happened
+- then show findings
+- then show evidence/details
+
+Do not drop users directly into repeated raw records when a concise summary can orient them first.
+
+### 3. Raw IDs are secondary
+Raw IDs should not dominate the interface.
+
+Default behavior:
+- show shortened IDs
+- keep full IDs in copy actions, tooltips, or secondary text
+- do not dump lists of raw IDs into rows unless explicitly asked
+
+### 4. Density over decorative chrome
+Avoid excessive nested cards, repeated mini-tables, and ornamental containers.
+
+Prefer:
+- concise row summaries
+- grouped findings
+- fewer, stronger sections
+- visual hierarchy driven by importance
+
+### 5. Route-specific hierarchy matters more than uniformity
+Do not apply one generic dashboard pattern everywhere.
+
+Each route should have a clear job.
+
+#### Renewals
+Primary job:
+- scan upcoming renewal work by account
+- understand urgency
+- open candidate detail only when needed
+
+#### Scrub
+Primary job:
+- inspect account-level monthly churn/contraction state
+- understand snapshot, canceled, replacement, and net impact
+- investigate detail in a prepared side panel
+
+### 6. Preserve working interaction models during data migrations
+When changing data sources or canonical contracts:
+- do not redesign the page in the same pass
+- keep interaction behavior stable
+- isolate visual changes to separate passes
+
+### 7. UI truthfulness
+Controls that imply messaging, persistence, or other side effects must be:
+- fully wired, or
+- explicitly disabled with explanatory copy
+
+Do not ship active-looking placeholder controls.
+
+## Renewals-specific rules
+
+### Parent/child model
+- parent rows are grouped at account/customer level
+- child rows are candidate/contract level
+- parent rows should feel actionable and summary-oriented
+- child rows should feel subordinate
+
+### KPI semantics
+- KPI math remains candidate-level unless explicitly redefined
+- visual grouping does not change counting grain
+
+### Detail behavior
+- detail remains candidate/contract-oriented
+- avoid bloating the table row with detail that belongs in the pane
+
+## Scrub-specific rules
+
+### Main table
+- one row per account/month
+- table should emphasize snapshot, canceled, replacement, net impact, and outcome
+- do not overfill rows with raw sub detail
+
+### Detail sheet
+The sheet should prioritize:
+1. summary
+2. findings
+3. canceled subscriptions
+4. coverage assessment
+5. active subscriptions
+
+### Coverage presentation
+If many subscriptions share the same outcome:
+- group repeated findings into a summary state
+- do not stack many near-identical repeated cards unless the differences matter
+
+## Visual caution states
+Use strong semantic contrast for:
+- negative states
+- positive/offsetting states
+- caution / needs review
+- freshness / degraded data
+
+Do not make all statuses feel visually equivalent.
+
+## Before making a UI pass
+State explicitly:
+- what the page’s primary job is
+- what belongs in the row/table
+- what belongs in secondary detail
+- what should become more dense
+- what should become more prominent
+- what should not change
+
+Also state:
+- which existing `components/ui` primitives should be reused or extended
+- whether `src/app/globals.css` or existing tokens already support the requested direction
+- whether the change is purely visual or needs a separate domain review
+- whether any controls on the page would imply side effects and therefore need real wiring or an explicit disabled state
+
+## What to avoid
+- card-heavy admin pages for operational workflows
+- raw debug-style output in rows
+- redesigning route structure while also migrating logic
+- overusing accordions when a side panel is the true detail surface
+- repeated evidence blocks when grouped summaries would do better---
+alwaysApply: true
+---

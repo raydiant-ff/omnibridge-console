@@ -43,17 +43,17 @@ export function PageHeader({
   return (
     <div
       className={cn(
-        "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
+        "flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between",
         className,
       )}
     >
       {stats && stats.length > 0 && (
-        <div className="flex items-center gap-3 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
           {stats.map((stat, index) => (
             <React.Fragment key={stat.label}>
               {index > 0 && <span className="text-border">|</span>}
               <span>
-                <span className="font-medium text-foreground">
+                <span className="font-semibold text-foreground">
                   {stat.value}
                 </span>{" "}
                 {stat.label}
@@ -63,7 +63,7 @@ export function PageHeader({
         </div>
       )}
       {(actions || children || badge) && (
-        <div className="flex shrink-0 items-center gap-2 ml-auto">
+        <div className="flex shrink-0 items-center gap-2.5 ml-auto">
           {badge}
           {actions}
           {children}

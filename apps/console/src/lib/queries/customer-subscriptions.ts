@@ -1,5 +1,6 @@
 "use server";
 
+import { getStripeClient } from "@omnibridge/stripe";
 import { flags } from "@/lib/feature-flags";
 import { computeItemMrr } from "@/lib/billing-utils";
 
@@ -68,7 +69,6 @@ export async function getCustomerSubscriptions(
     return MOCK_SUBSCRIPTIONS;
   }
 
-  const { getStripeClient } = await import("@omnibridge/stripe");
   const stripe = getStripeClient();
 
   const subs: any[] = [];

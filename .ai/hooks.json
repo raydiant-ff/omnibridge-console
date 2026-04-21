@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": ".ai/hooks/post-edit-status.sh"
+      }
+    ],
+    "beforeShellExecution": [
+      {
+        "command": ".ai/hooks/pre-commit-sanity.sh",
+        "matcher": "git commit"
+      }
+    ]
+  }
+}

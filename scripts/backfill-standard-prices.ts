@@ -6,8 +6,8 @@
  *
  * Usage:
  *   export $(grep -v '^#' apps/console/.env.local | grep -v '^$' | xargs)
- *   npx tsx scripts/backfill-standard-prices.ts > backfill-prices-dryrun.csv
- *   npx tsx scripts/backfill-standard-prices.ts --execute > backfill-prices-results.csv
+ *   npx tsx scripts/backfill-standard-prices.ts > artifacts/local/spreadsheets/backfill-prices-dryrun.csv
+ *   npx tsx scripts/backfill-standard-prices.ts --execute > artifacts/local/spreadsheets/backfill-prices-results.csv
  */
 
 import { soql } from "../packages/integrations/salesforce/src/index.ts";

@@ -1,6 +1,13 @@
 "use server";
 
 import { requireSession } from "@omnibridge/auth";
+import {
+  getOpportunitiesByOwnerEmail,
+  getOpportunitiesForDashboard,
+  getAllOpportunities,
+  searchAccounts,
+  getOpportunitiesByAccountId,
+} from "@omnibridge/salesforce";
 import { flags } from "@/lib/feature-flags";
 import { cached } from "@/lib/cache";
 
@@ -30,7 +37,7 @@ const MOCK_OPPORTUNITIES: OpportunityRow[] = [
     closeDate: "2026-04-15",
     createdDate: "2026-01-10T08:00:00Z",
     lastModified: "2026-02-18T10:30:00Z",
-    ownerName: "Francisco Fiedler",
+    ownerName: "Alex Morgan",
   },
   {
     id: "006MOCK002",
@@ -56,7 +63,7 @@ const MOCK_OPPORTUNITIES: OpportunityRow[] = [
     closeDate: "2026-06-01",
     createdDate: "2026-02-01T09:30:00Z",
     lastModified: "2026-02-16T09:00:00Z",
-    ownerName: "Francisco Fiedler",
+    ownerName: "Alex Morgan",
   },
 ];
 
@@ -75,7 +82,6 @@ export async function getMyOpportunities(): Promise<OpportunityRow[]> {
   try {
     return await cached(
       async () => {
-        const { getOpportunitiesByOwnerEmail } = await import("@omnibridge/salesforce");
         const records = await getOpportunitiesByOwnerEmail(email);
         return records.map(mapOpportunity);
       },
@@ -101,7 +107,7 @@ const MOCK_DASHBOARD_OPPORTUNITIES: OpportunityRow[] = [
     closeDate: "2026-01-28",
     createdDate: "2025-11-15T10:00:00Z",
     lastModified: "2026-01-28T16:00:00Z",
-    ownerName: "Francisco Fiedler",
+    ownerName: "Alex Morgan",
   },
   {
     id: "006MOCK005",
@@ -127,7 +133,7 @@ const MOCK_DASHBOARD_OPPORTUNITIES: OpportunityRow[] = [
     closeDate: "2026-02-05",
     createdDate: "2026-01-02T08:00:00Z",
     lastModified: "2026-02-05T11:00:00Z",
-    ownerName: "Francisco Fiedler",
+    ownerName: "Alex Morgan",
   },
   {
     id: "006MOCK007",
@@ -153,7 +159,7 @@ const MOCK_DASHBOARD_OPPORTUNITIES: OpportunityRow[] = [
     closeDate: "2026-05-15",
     createdDate: "2026-02-12T10:00:00Z",
     lastModified: "2026-02-20T09:00:00Z",
-    ownerName: "Francisco Fiedler",
+    ownerName: "Alex Morgan",
   },
 ];
 
@@ -166,7 +172,6 @@ export async function getDashboardOpportunities(): Promise<OpportunityRow[]> {
 
   return cached(
     async () => {
-      const { getOpportunitiesForDashboard } = await import("@omnibridge/salesforce");
       const yearStart = `${new Date().getFullYear()}-01-01`;
       const records = await getOpportunitiesForDashboard(yearStart);
       return records.map(mapOpportunity);
@@ -189,7 +194,6 @@ export async function getAllOpportunitiesAdmin(): Promise<OpportunityRow[]> {
 
   return cached(
     async () => {
-      const { getAllOpportunities } = await import("@omnibridge/salesforce");
       const records = await getAllOpportunities();
       return records.map(mapOpportunity);
     },
@@ -245,7 +249,6 @@ export async function searchSalesforceAccounts(
   }
 
   try {
-    const { searchAccounts } = await import("@omnibridge/salesforce");
     const records = await searchAccounts(term.trim());
     return (records as { Id: string; Name: string; Industry: string | null }[]).map(
       (r) => ({
@@ -277,7 +280,6 @@ export async function getOpportunitiesForAccount(
   }
 
   try {
-    const { getOpportunitiesByAccountId } = await import("@omnibridge/salesforce");
     const records = await getOpportunitiesByAccountId(sfAccountId);
     let rows = records.map(mapOpportunity);
     if (quoteType) {

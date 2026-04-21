@@ -54,6 +54,19 @@ tsconfig.tsbuildinfo
 apps/images/
 apps/logos/
 
-# Redundant subagent drafts (canonical definitions live in .cursor/agents/)
-.cursor/subagents/
-.cursor/.last-edit-status.txt
+# Repo-owned AI workflow state
+.ai/subagents/
+.ai/.last-edit-status.txt
+.ai/.last-test-failure.txt
+.ai/handoffs/
+
+# Tool-owned local service folders
+# Keep these at repo root because the tools expect conventional paths.
+.claude/
+.sfdx/
+.v0/
+apps/console/.next_build_retry_*/
+apps/console/.next_stale_*/
+docs/shadcn-version/shadcn_blocks_api_key
+.vercel
+artifacts/local/

@@ -4217,7 +4217,7 @@ export default async function CustomerDetailPage({ params }: Props) {
 
   const stripeDetail = await getStripeCustomerDetail(account.stripeCustomerId);
 
-  const sfBase = process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://raydiant.lightning.force.com";
+  const sfBase = process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://yourorg.lightning.force.com";
   const sfUrl = `${sfBase}/lightning/r/Account/${account.id}/view`;
   const stripeUrl = account.stripeCustomerId
     ? `https://dashboard.stripe.com/customers/${account.stripeCustomerId}`
@@ -4993,7 +4993,7 @@ export function AccountsTable({ myAccounts, allAccounts, isAdmin }: AccountsTabl
             </TableHeader>
             <TableBody>
               {filtered.map((a) => {
-                const sfBase = process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://raydiant.lightning.force.com";
+                const sfBase = process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://yourorg.lightning.force.com";
                 const sfUrl = `${sfBase}/lightning/r/Account/${a.id}/view`;
                 const stripeUrl = a.stripeCustomerId
                   ? `https://dashboard.stripe.com/customers/${a.stripeCustomerId}`
@@ -7539,7 +7539,7 @@ interface Props {
 }
 
 const STRIPE_DASHBOARD = "https://dashboard.stripe.com";
-const SF_BASE = process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://raydiant.lightning.force.com";
+const SF_BASE = process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://yourorg.lightning.force.com";
 
 const ACTION_COLORS: Record<string, string> = {
   "quote.created": "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
@@ -10367,7 +10367,7 @@ import { formatCurrency } from "@/lib/format";
 import type { QuoteCustomer, QuoteType, ContractMode } from "../wizard";
 
 const SF_BASE =
-  process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://raydiant.lightning.force.com";
+  process.env.NEXT_PUBLIC_SF_ORG_URL ?? "https://yourorg.lightning.force.com";
 
 const SHOWS_CONTRACT_MODE: QuoteType[] = ["Expansion", "Renewal", "Amendment"];
 

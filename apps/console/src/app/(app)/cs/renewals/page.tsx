@@ -1,5 +1,5 @@
 export const dynamic = "force-dynamic";
-import { getRenewalCandidates } from "@/lib/queries/cs-renewals";
+import { fetchRenewalsForMonth } from "./actions";
 import { RenewalsDashboard } from "./renewals-dashboard";
 
 function currentMonth(): string {
@@ -7,13 +7,18 @@ function currentMonth(): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
-export default async function RenewalsPage() {
+export default async function RenewalsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ account?: string }>;
+}) {
+  const { account } = await searchParams;
   const month = currentMonth();
-  let data: Awaited<ReturnType<typeof getRenewalCandidates>> | null = null;
+  let data: Awaited<ReturnType<typeof fetchRenewalsForMonth>> | null = null;
   let error: string | null = null;
 
   try {
-    data = await getRenewalCandidates(month, null);
+    data = await fetchRenewalsForMonth(month, null);
   } catch (err) {
     error = err instanceof Error ? err.message : "Failed to load renewals.";
   }
@@ -25,7 +30,7 @@ export default async function RenewalsPage() {
           {error}
         </div>
       ) : data ? (
-        <RenewalsDashboard initialMonth={month} initialData={data} />
+        <RenewalsDashboard initialMonth={month} initialData={data} initialAccountFilter={account ?? null} />
       ) : null}
     </div>
   );

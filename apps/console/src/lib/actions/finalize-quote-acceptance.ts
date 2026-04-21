@@ -1,6 +1,8 @@
 "use server";
 
 import { prisma } from "@omnibridge/db";
+import { getStripeClient } from "@omnibridge/stripe";
+import { updateSObject, soql, escapeSoql } from "@omnibridge/salesforce";
 import { createSfQuoteEvent } from "@/lib/actions/sf-quote-event";
 
 /**
@@ -71,7 +73,6 @@ export async function finalizeQuoteAcceptance(
   // Push SF quote number to Stripe metadata
   if (record.sfQuoteNumber) {
     try {
-      const { getStripeClient } = await import("@omnibridge/stripe");
       const stripe = getStripeClient();
       await stripe.quotes.update(record.stripeQuoteId, {
         metadata: { sf_quote_number: record.sfQuoteNumber },
@@ -134,7 +135,6 @@ async function backfillSubscriptionData(
   subscriptionId: string,
 ) {
   try {
-    const { getStripeClient } = await import("@omnibridge/stripe");
     const stripe = getStripeClient();
     const sub = await stripe.subscriptions.retrieve(subscriptionId);
     const subItemIds = sub.items.data.map((item) => item.id);
@@ -172,7 +172,6 @@ async function convertToSubscriptionSchedule(
   ) => number,
 ) {
   try {
-    const { getStripeClient } = await import("@omnibridge/stripe");
     const stripe = getStripeClient();
 
     type ContractTerm = import("@/lib/billing-utils").ContractTerm;
@@ -274,7 +273,6 @@ async function syncToSalesforce(
 
         if (sfResult.success && sfResult.contractId) {
           try {
-            const { getStripeClient } = await import("@omnibridge/stripe");
             const stripe = getStripeClient();
             await stripe.quotes.update(record.stripeQuoteId, {
               metadata: { sf_contract_id: sfResult.contractId },
@@ -295,7 +293,6 @@ async function syncToSalesforce(
         }
       }
 
-      const { updateSObject } = await import("@omnibridge/salesforce");
       await updateSObject("Stripe_Quote__c", record.sfQuoteId, {
         Stripe_Subscription_ID__c: subscriptionId,
         Is_Payment_Done__c: true,
@@ -326,9 +323,6 @@ async function linkInvoiceToStripeQuote(
   stripeInvoiceId: string,
 ) {
   try {
-    const { soql, updateSObject, escapeSoql } = await import(
-      "@omnibridge/salesforce"
-    );
     const result = await soql<{ Id: string }>(
       `SELECT Id FROM Stripe_Invoice__c WHERE Stripe_Invoice_Id__c = '${escapeSoql(stripeInvoiceId)}' LIMIT 1`,
     );

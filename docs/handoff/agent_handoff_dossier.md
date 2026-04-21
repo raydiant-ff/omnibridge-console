@@ -28,7 +28,7 @@
 - DocuSign signing
 
 **Deprioritized:**
-- `.cursor/` subagent definitions (agent-specific)
+- `.ai/` agent definitions (agent-specific)
 - `sf-metadata/` (Salesforce metadata, large)
 - Individual component styling details
 
@@ -164,7 +164,7 @@ OmniBridge-v2/
 ├── scripts/                      # Backfill, audit, CSM tools
 ├── sf-metadata/                  # Salesforce metadata
 ├── docs/stripe/                  # Stripe API docs (reference)
-├── .cursor/                      # Cursor rules, agents
+├── .ai/                          # Repo-local AI rules, agents, handoffs
 └── AGENTS.md
 ```
 
@@ -541,7 +541,7 @@ Stripe → customer.subscription.created/updated/deleted → handleSubscriptionS
 | PRODUCT.md | Partially stale (Google SSO, workflows) |
 | REPO_PLAN.md | Stale (initial plan) |
 | docs/stripe/* | Reference docs, not implementation |
-| .cursor/rules/* | Accurate, always apply |
+| .ai/rules/* | Accurate, always apply |
 
 **Missing:** .env.example, deployment runbook, webhook setup guide.
 

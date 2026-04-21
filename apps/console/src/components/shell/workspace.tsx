@@ -45,8 +45,8 @@ export function WorkspaceHeader({ children, sticky = false, className }: Workspa
   return (
     <div
       className={cn(
-        "flex flex-col gap-1 px-8 pt-8 pb-6",
-        sticky && "sticky top-0 z-10 bg-background border-b border-border",
+        "flex flex-col gap-2 px-8 pt-8 pb-6",
+        sticky && "sticky top-0 z-10 border-b border-border bg-background/95 backdrop-blur-sm",
         className,
       )}
     >
@@ -65,7 +65,7 @@ interface WorkspaceBodyProps {
 }
 
 export function WorkspaceBody({ children, className }: WorkspaceBodyProps) {
-  return <div className={cn("flex-1 px-8 pb-8 flex flex-col gap-6", className)}>{children}</div>;
+  return <div className={cn("flex-1 px-8 pb-8 flex flex-col gap-8", className)}>{children}</div>;
 }
 
 // ---------------------------------------------------------------------------
